@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–11 populated from registered sources and source-derived recommendations; §§12–14 remain evidence registers or partial skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–12 populated from registered sources and source-derived recommendations; §§13–14 remain question/source registers. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -702,11 +702,41 @@ The checks below are **recommended tests to design and record**, not claims that
 
 ## 12. Troubleshooting and Verified Behaviors
 
-**Owner:** Reproducible failures, tests, root causes, confirmed workarounds, and environmental limitations.
+**Scope:** A source-traceable index of *reported or described* failure conditions, plus a separate register for independently reproduced and verified behavior. Troubleshooting guidance here does not replace the owning configuration requirements in §§2–8. **Evidence status:** S01/S02 describe possible failures and controls, but no executed test logs, environment snapshots, or independently verified incidents have been supplied. Consequently, **no item below is `VERIFIED` or `OBSERVED`.**
 
-**Status:** No independent verification records supplied. Described behavior in S01/S02 is not automatically `VERIFIED`.
+### 12.1 Source-described failure conditions and investigation leads
 
-**Future record fields:** ID; symptom; environment/version; preconditions; reproduction steps; expected/actual outcome; evidence reference; resolution; verification date; applicable analyses.
+The following entries are **`DOCUMENTED_DESCRIPTION`**, not verified defects or guaranteed diagnostic rules. A source's stated cause should be treated as a hypothesis to check against actual configuration and runtime evidence.
+
+| ID / situation | Source-described symptom, condition, or control | Investigation starting point | Evidence and boundary |
+|---|---|---|---|
+| `TR-SRC-01` — File parser missing | S02 says `MNU_BM_SLTC_DATA_PARSE` constructs `BM_SLTC_DATA_PARSE_{analysisName}` dynamically and exits with an error when the subroutine does not exist. | Confirm analysis name and parser routine name; inspect dispatch code before asserting exact resolution. [§6.2](#62-import-entry-point-and-parser-dispatch). | S02 p. 17, *Data File Batches*. Error text and dispatch internals not supplied; [Q04](#q04-parser-dispatch). |
+| `TR-SRC-02` — Previously imported file | S02 says the menu routine checks whether **Instrument File** is populated and assumes the file has already been imported. | Inspect the batch's Instrument File result and any existing results before considering a repeat import. [§6.2](#62-import-entry-point-and-parser-dispatch). | S02 p. 17. This does **not** prove duplicate protection or safe retry; [G02](#g02-parser-failure-and-recovery). |
+| `TR-SRC-03` — Pre-analysis results missing | S01/S02 describe file-import gating when required/non-optional batch results have not been entered; S02 also describes gating for Empower testing. | Review batch results, component requiredness, and workflow mode. [§4.5](#45-pre-analysis-results-and-entry-mode-differences). | S01 p. 2; S02 pp. 8, 14–15. `Optional = F` and `Required = T` are not presumed identical; [Q02](#q02-component-requiredness). |
+| `TR-SRC-04` — File validation fails | S02 describes a `validateOnly` pass checking batch/sample IDs, standard/control types and counts, and presence/types of values; `validationStr` provides feedback. | Capture actual validation message and input file; compare with batch membership and parser logic. [§6.4](#64-validation-only-and-commit-processing). | S02 pp. 17–18. Exact checks, messages, and rollback semantics not supplied; [Q05](#q05-parser-contract), [G02](#g02-parser-failure-and-recovery). |
+| `TR-SRC-05` — Parsing deliberately stopped | S02 describes `stopParse` as stopping import and returning a file to the instrument directory, and `wrongBatch` as a stop condition for automatic processing. | Inspect parser outputs, source file state, and the actual menu routine; do not assume a transaction rollback. [§6.3](#63-analysis-parser-result-contract), [§6.4](#64-validation-only-and-commit-processing). | S02 pp. 17–18. Filesystem and partial-write behavior unknown; [G02](#g02-parser-failure-and-recovery). |
+| `TR-SRC-06` — Empower project mismatch | S02 says batch processing compares the selected instrument's expected Empower project with the project loaded in the interface and prompts a switch if they differ. | Check instrument Parameter 2 and the active Empower project. [§8.1](#81-instrument-association-and-project-validation). | S02 p. 19. Comparison and exception behavior unverified; [G04](#g04-empower-exception-behavior). |
+| `TR-SRC-07` — Empower `ND` type mismatch | S02 says Empower can return `ND` for an undetected peak, producing a runtime type mismatch if a numeric component type is used; it directs **Text** for Empower peak components. | Inspect peak component data type and representative Empower output. [§8.6](#86-empower-peak-values-and-calculation-considerations). | S02 p. 12, *Empower*. Exact error and downstream numeric handling not independently tested. |
+| `TR-SRC-08` — Limit not applied | Both sources state Analysis Limits are not checked inherently in the described implementation and require explicit use in result calculations. | Inspect limit records and the relevant calculation; compare raw/final result and reporting limit. [§7.1](#71-analysis-limits-and-enforcement-boundary), [§7.2](#72-lower-reporting-limit-and-final-result-propagation). | S01 p. 1; S02 p. 10. Not proof of vendor-wide behavior or a specific observed failure. |
+| `TR-SRC-09` — Out-of-order dependent calculations | S01/S02 prescribe `AutoCalculate = F` for final calculations in file-import batches because blank and unknown results can be interdependent and out of order. | Inspect calculation flags and actual execution path before changing them. [§7.3](#73-calculation-execution-and-data-source-distinctions). | S01 p. 2; S02 p. 12. No failed run or complete sequencing code supplied; [Q06](#q06-calculation-mode). |
+| `TR-SRC-10` — Manual batch fields omitted | S02 says manual batch entry has no batch-level validation of the Batch Results table and relies on analyst/reviewer checks. | Inspect entered batch results and the applicable manual review workflow. [§4.5](#45-pre-analysis-results-and-entry-mode-differences), [§9.4](#94-batch-testing-mode-specific-operator-boundaries). | S02 p. 16. Does not exclude validation elsewhere; [Q09](#q09-manual-batch-checks). |
+
+**Not a troubleshooting conclusion:** A condition in this table does not establish that it occurred in the laboratory, that the stated mechanism is the only possible cause, or that the suggested inspection resolves it. Do not promote an entry to `VERIFIED` without a reproducible record.
+
+### 12.2 Verified-behavior register
+
+**No verified-behavior records currently exist.** S01 and S02 are written guidance, not test evidence. Do not manufacture a passing test, environment, date, error message, or resolution from their examples.
+
+When evidence is supplied, add a compact entry here with a stable identifier such as `TR-VER-001`. A record should specify **analysis/method and workflow**, **environment/version and date**, **configuration or code revision**, **input and preconditions**, **reproduction steps**, **expected versus actual outcome**, **evidence location**, **root cause (if established)**, **resolution or workaround**, **retest result**, and **remaining applicability limits**. If a record demonstrates only a configured setting, classify it `OBSERVED` rather than `VERIFIED`.
+
+### 12.3 Investigation and promotion procedure
+
+1. Start with the symptom and testing mode; use the source-described table above only to identify relevant canonical topics and possible checks.
+2. Preserve sanitized input, actual messages/logs, relevant configuration or code snapshots, environment, and time of occurrence. Do not include sensitive production data unnecessarily.
+3. Record what was actually reproduced, including negative or inconclusive outcomes. Distinguish a suspected cause from a demonstrated cause and a proposed fix from a retested fix.
+4. Add an evidence-backed `OBSERVED` or `VERIFIED` record only when the evidence supports that classification. If a general rule changes, update its owning section; retain the case-specific record here and cross-reference the relevant [§13](#13-open-questions-and-undocumented-areas) question.
+
+**Verification priorities:** Parser dispatch and recovery ([Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [G02](#g02-parser-failure-and-recovery)); requiredness semantics ([Q02](#q02-component-requiredness)); calculation ordering ([Q06](#q06-calculation-mode)); Empower exception handling ([G04](#g04-empower-exception-behavior)); and manual-batch checks ([Q09](#q09-manual-batch-checks)). These remain open until independently supported evidence is registered.
 
 ## 13. Open Questions and Undocumented Areas
 
@@ -792,6 +822,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 
 | 2026-10-14 | Populated §10 with a source-derived implementation checklist, mode-specific branches, and proposed verification checkpoints; no new technical requirements or verified outcomes asserted. | S01 pp. 1–3; S02 pp. 5–21; cross-references to §§1–9. Recommended sequence, not validated SOP. |
 | 2026-10-14 | Populated §11 with source-described ICP_OES, GC, Empower, and named-variation examples; identified empty analysis headings and retained verification boundaries. | S01 pp. 1–3; S02 pp. 10–13, 15–16, 19–21. Examples only, not inspected or verified configurations. |
+| 2026-10-14 | Populated §12 with source-described failure conditions, an explicitly empty verified-behavior register, and an evidence-based investigation template. | S01 pp. 1–2; S02 pp. 8, 12, 14–19. No independently reproduced incidents or resolutions. |
 
 ### 14.3 Maintenance procedure
 
