@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–5 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–6 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -341,11 +341,86 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ## 6. Data Import and Parsing
 
-**Owner:** Instrument file intake, import directory constants, parser invocation, interfaces, validation-only and commit phases, reordering, file lifecycle.
+**Scope:** Laboratory-documented import of instrument-generated result files into batches: file location, batch prerequisites, parser invocation, returned data and context variables, validation, batch ordering, and failure controls. This is **not** the inbound OIS request XML pipeline ([§2](#2-ois-integration-project-and-sample-setup)) or Empower interface processing ([§8](#8-empower-integration)). Instrument record settings belong to [§5](#5-instrument-configuration); batch result-component settings to [§4](#4-batch-configuration); final-result calculation sequencing to [§7](#7-calculations-limits-and-reporting). **Evidence status:** S01/S02 source-documented instructions and descriptions only; parser code, menu routine code, configuration exports, vendor reference, and executed tests have not been examined.
 
-**To develop:** `SLTC_DATA_IMPORT_{analysisName}` and `BM_SLTC_DATA_PARSE_{analysisName}` conventions, `resultDataArr` interface, conditional parser context variables, validation and retry behavior. Keep file-import-only settings explicitly scoped.
+### 6.1 File location and batch prerequisites
 
-**Sources to review:** S01 pp. 2–3; S02 pp. 8, 16–18. **Open:** [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery).
+**[IMP-PATH-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports in the documented SLTC implementation.** S01 instructs configuring a LIMS constant named `SLTC_DATA_IMPORT_{analysisName}` for each analysis, with a full directory path and file extension containing `*` as the filename wildcard (example `D:\OIS Integration\Inbound ICP Results\*.csv`). S01 says the current implementation works at **analysis-level granularity**, while noting that a different granularity may be possible; do not assume instrument-level or method-level overrides are implemented. **Evidence:** S01 p. 3, *LIMS Constant Configuration*. **Open:** [Q08](#q08-path-constant-granularity).
+
+**[IMP-PREREQ-01] — `DOCUMENTED_REQUIREMENT` — File-import batches.** S01 requires the batch component identifying the file-generating instrument to have **Data File Source = True** and says there should be **only one** such component per batch; it also requires an **Instrument File** result of type **DB File Name**. S01 says batch results marked **Optional = F** must be entered before import; S02 uses **Required = T** and “non-optional” terminology for related gating. These labels are not assumed equivalent. **Evidence:** S01 p. 2, *Batch Result Components*; S02 pp. 8, 14–15, *Batch Testing* and *Required Configuration*. **Owning batch settings:** [§4.4](#44-batch-result-components-and-reference-fields), [§4.5](#45-pre-analysis-results-and-entry-mode-differences); **open:** [Q02](#q02-component-requiredness).
+
+**[IMP-TRANSFER-01] — `DOCUMENTED_DESCRIPTION` — Transport versus parsing.** S02 describes instrument files arriving through SFTP via Windows shell scripts executed by a LabWare background instance, while the batch result-import process is initiated separately. The scripts, file locations, and transfer configuration are not specified. **Evidence:** S02 p. 6, *File Transfer Process*; p. 8, *Data Parsing*. **See:** [§2.1](#21-end-to-end-ois-context-and-intake-boundary).
+
+### 6.2 Import entry point and parser dispatch
+
+**[IMP-ENTRY-01] — `DOCUMENTED_DESCRIPTION` — Manually initiated file imports.** S02 describes **Batch → Batch Process Results** (`MNU_BM_SLTC_DATA_PARSE`): the routine identifies the instrument directory from the assigned batch instrument, presents a file selection, validates the batch and file, and prompts for confirmation before import. S02 says manual initiation was preferred for the OSHA workflow even though automatic import is possible. This is source-described behavior, not a verified UI or execution trace. **Evidence:** S02 p. 8, *Data Parsing*; pp. 16–17, *Data File Batches*.
+
+**[IMP-DISPATCH-01] — `DOCUMENTED_REQUIREMENT` / `DOCUMENTED_DESCRIPTION` — Analysis-specific file parser.** S01 specifies the analysis parser name `BM_SLTC_DATA_PARSE_{analysisName}`. S02 says the menu routine constructs/calls this name dynamically and errors if the subroutine does not exist. S01 additionally specifies `BM_SLTC_DATA_PARSE_{analysisName}_{instrumentName}` for instrument-specific parsing **when a LabStation parsing script is not used**, with the suffix matching instrument Parameter 1 value. The source documents do **not** show the full instrument-specific dispatch implementation or precedence. **Evidence:** S01 p. 3, *Subroutine configuration*; S02 p. 17, *Data File Batches*. **Instrument configuration:** [§5.2](#52-instrument-parameter-1-laboratory-instrument-identifier), [§5.3](#53-labstation-script-versus-instrument-specific-parser); **open:** [Q04](#q04-parser-dispatch).
+
+**[IMP-DUPLICATE-01] — `DOCUMENTED_DESCRIPTION` — Reimport guard.** S02 says the menu routine checks whether the batch **Instrument File** result has already been entered and, if so, assumes that data were imported and does not proceed with the normal import path. This is a documented safeguard, **not proof of idempotency** or a complete recovery/override procedure. **Evidence:** S02 p. 17, *Data File Batches*. **Open:** [G02](#g02-parser-failure-and-recovery).
+
+### 6.3 Analysis parser result contract
+
+**[IMP-ARRAY-01] — `DOCUMENTED_REQUIREMENT` — Analysis-specific file parser.** Both sources describe returning `resultDataArr` as a **headerless two-dimensional array** with **one row per result** and ten columns in this order. S01 says unused attribute positions may be blank but must remain present. **Evidence:** S01 p. 3, *Analysis-specific parsing configuration*; S02 p. 17, *Data File Batches*.
+
+| Column | Value |
+|---|---|
+| 1 | Sample Number |
+| 2 | Test Number |
+| 3 | Result Number |
+| 4 | Result Name |
+| 5 | Result Entry |
+| 6 | Result Attribute 1 |
+| 7 | Result Attribute 2 |
+| 8 | Result Attribute 3 |
+| 9 | Result Attribute 4 |
+| 10 | Result Attribute 5 |
+
+**[IMP-RETURNS-01] — `DOCUMENTED_DESCRIPTION` — Additional parser outputs.** S01 describes optional `reorderBatch` and, when true, `batchOrderArr`. S02 lists additional context outputs `stopParse`, `validationStr`, and `wrongBatch`. These are **not all established as unconditional mandatory returns**. The table records their documented roles, not verified variable initialization or consumption semantics. **Evidence:** S01 p. 3; S02 pp. 17–18, *Data File Batches*.
+
+| Variable | Documented role / condition |
+|---|---|
+| `reorderBatch` | Boolean; if true, batch objects are reordered using `batchOrderArr`. S01 describes it as optional. |
+| `batchOrderArr` | Two-dimensional array required **if `reorderBatch = TRUE`**; column 1 contains batch object IDs (test numbers) in desired order. |
+| `stopParse` | Boolean; if true, S02 says parsing stops and the file is returned to the instrument directory. |
+| `validationStr` | Text describing why processing cannot proceed; S02 says it should be written during the validation-only loop. |
+| `wrongBatch` | Boolean used for automatic processing; if true, S02 says it stops processing similarly to `stopParse`. |
+
+**[IMP-CONTEXT-01] — `DOCUMENTED_DESCRIPTION` — Values supplied to the called analysis parser.** S02 identifies the following context variables supplied by `MNU_BM_SLTC_DATA_PARSE`. Their types and meanings are transcribed at the level supported by S02; the actual call signature is unverified. **Evidence:** S02 p. 18, *Data File Batches*.
+
+| Variable | Description in S02 |
+|---|---|
+| `instrumentBarcode` | Primary key of the batch-file instrument in `INSTRUMENTS`. |
+| `Batch` | Batch name (primary key). |
+| `batchSampsArr` | One-dimensional array of batch sample numbers. |
+| `directory` | Instrument-data directory path. |
+| `directoryProcess` | Processing-directory path under the instrument folder. |
+| `fileArr` | Two-dimensional array of filenames in the instrument-data directory. |
+| `filename` | Full path and name of the file to parse. |
+| `Method` | Method associated with the batch. |
+| `Analysis` | Analysis associated with the batch. |
+
+**[IMP-CONTRACT-OPEN] — `UNRESOLVED` — Parser interface details.** S01's shorter output description and S02's longer output list are not assumed contradictory or fully reconciled. Which variables are mandatory, their precise scope, initialization, and return/side-effect handling must be checked against `MNU_BM_SLTC_DATA_PARSE` and representative parsers. **Open:** [Q05](#q05-parser-contract).
+
+### 6.4 Validation-only and commit processing
+
+**[IMP-VALIDATE-01] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — File-import validation design.** S02 describes **two loops**: a first **`validateOnly = TRUE`** pass that checks the file and gives the user actionable feedback, followed by a second pass that performs commits such as result replication and CCV additions. Its suggested checks include matching file sample IDs to the batch, verifying standard/control sample counts and types, and ensuring data are present and have the expected types. S02 instructs guarding commits with `IF` conditions during the validation-only pass and writing useful messages to `validationStr`. These are documented design instructions, **not evidence of transaction isolation or a guarantee of no writes**. **Evidence:** S02 p. 18, *Validation*.
+
+**[IMP-STOP-01] — `DOCUMENTED_DESCRIPTION` — Stop conditions and feedback.** S02 says `stopParse = TRUE` stops parsing and returns the file to the instrument directory; `wrongBatch = TRUE` is used in automatic processing to stop similarly; `validationStr` communicates reasons a batch cannot be processed. The sources do not specify all branches, filesystem operations, partial-commit rollback, or the effect of a failed second pass. **Evidence:** S02 pp. 17–18, *Data File Batches*. **Open:** [G02](#g02-parser-failure-and-recovery).
+
+### 6.5 Result replication and batch reordering
+
+**[IMP-ORDER-01] — `DOCUMENTED_REQUIREMENT` — Only when parser requests reordering.** If `reorderBatch = TRUE`, S01/S02 require `batchOrderArr`, with its **first column** holding the batch object IDs (test numbers) in desired order. S01's `ICP_OES` example includes timestamp and sample number in additional columns, but says only column 1 is used for reordering. In that example, some tests are added after file processing, so tests are reordered by instrument timestamp. **Evidence:** S01 p. 3, *Analysis-specific parsing configuration*; S02 p. 17, *Data File Batches*. **Example only:** `BM_SLTC_DATA_PARSE_ICP_OES`.
+
+**[IMP-REPLICATE-01] — `DOCUMENTED_DESCRIPTION` — Data-dependent testing.** S02 says the import process may add result replicates and CCV-related entries based on file contents, and describes repeated CCV runs as additional analysis replicates on one QC sample. The exact replication and association logic is not included in the supplied documents. **Evidence:** S02 pp. 16–18, *CCVs*, *Data File Batches*, *Validation*. **Batch/QC owner:** [§4.3](#43-batch-protocols-standards-and-qc-stock).
+
+### 6.6 File lifecycle, failure boundaries, and evidence needs
+
+- **Source-described paths:** S02 identifies an instrument directory and a processing directory; S01 specifies a wildcard file-path constant. Their exact relationship, file movement, archive behavior, cleanup, and retry mechanism are **not established**. [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery).
+- **Duplicate and partial imports:** The **Instrument File** check is described, but no source establishes safe repeat import, rollback, or recovery after partial results have been committed. [G02](#g02-parser-failure-and-recovery).
+- **Dispatch and output semantics:** Confirm parser naming, LabStation interactions, context variables, and reordering against actual routines. [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract).
+- **Calculation ordering:** S01/S02 instruct **AutoCalculate = F** for file-import final-result calculations because blanks and unknowns may be interdependent; the detailed rule belongs to [§7](#7-calculations-limits-and-reporting), not this section.
+- **No vendor/runtime verification:** Nothing in §6 is classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`. `ICP_OES`, instrument names, paths, and code identifiers supplied as examples are not universal configuration defaults.
 
 ## 7. Calculations, Limits, and Reporting
 
@@ -476,6 +551,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §3 analysis configuration, method/variation setup, components, attributes and aliquoting; retained conditional rules and unresolved questions. | S01 pp. 1–2; S02 pp. 9–13, 15–16. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §4 batch templates, test membership, protocols, QC/stock references, batch components and entry-mode distinctions; retained unresolved terminology and field questions. | S01 pp. 1–2; S02 pp. 8, 13–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §5 instrument groups, parameters, conditional parser identifiers, and Empower project association; retained instrument-reference and dispatch questions. | S01 pp. 1–3; S02 pp. 9, 14, 19. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §6 file-import paths, parser contracts and context, validation phases, reordering, and failure limitations; retained unverified behavior. | S01 pp. 1–3; S02 pp. 6, 8, 16–18. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
