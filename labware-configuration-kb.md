@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Structural skeleton (Phase 3), 2026-10-14. **Not yet an implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §1 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -57,11 +57,69 @@ Sections 1–9 own reusable technical guidance; §10 is a linked implementation 
 
 ## 1. Configuration Architecture and Dependencies
 
-**Owner:** LabWare object relationships, key fields and identifiers, dependency map, naming and link conventions.
+**Scope:** This section describes the laboratory-documented relationships among configuration objects and the dependencies that must be understood before configuring an analysis. Detailed field settings and procedures remain in their owning sections (§§2–8). **Evidence status:** source-documented only; no configuration export, routine code, vendor manual, or executed test has yet been used to verify these relationships.
 
-**To develop:** ANALYSIS / analysis methods / T_ANALYSIS_METHOD distinctions; TEST-to-batch relationships; batch link matching; variation and parser naming; configuration prerequisites. Preserve distinctions among similarly named tables.
+### 1.1 Object model and relationship boundaries
 
-**Sources to review:** S01 pp. 1–3; S02 pp. 9–11, 14–16. **Open:** [Q01](#q01-instrument-reference-fields), [Q03](#q03-methodvariation-relationships).
+| Object / table | Documented role or relationship | Evidence and classification | Detail owner |
+|---|---|---|---|
+| `ANALYSIS` | Analysis configuration is associated with instrument group, batch link, attributes, variations, components, and method/variation assignments. | `DOCUMENTED_DESCRIPTION` — S01 p. 1; S02 pp. 9–12 | [§3](#3-analysis-configuration) |
+| `T_ANALYSIS_METHOD` | Separate master method table. A method record is described as a prerequisite to associating methods and variations with an analysis. It also carries `X_RELATED_METHOD` for the documented compatible-method scenario. | `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — S02 pp. 10, 15–16 | [§3](#3-analysis-configuration), [§4](#4-batch-configuration) |
+| `ANALYSIS_METHOD` / `ANALYSIS_METHODS` | Child relationship of `ANALYSIS`, used to pair a method with an analysis variation. S02 uses both singular and plural spellings; the exact physical table name must be checked before writing queries. It is **not** the same object as `T_ANALYSIS_METHOD`. | `DOCUMENTED_DESCRIPTION` — S02 pp. 10–11, 15–16 | [§3](#3-analysis-configuration); [Q03](#q03-methodvariation-relationships) |
+| Analysis Variation | Identifies the variation used for testing; has an associated method and component-level settings. Media, QC, QCSM and aliquot variation types are documented, conditionally. | `DOCUMENTED_DESCRIPTION` — S01 p. 1; S02 pp. 10–11 | [§3](#3-analysis-configuration) |
+| `TEST` | The object assigned to a batch, rather than the `SAMPLE` directly. | `DOCUMENTED_DESCRIPTION` — S02 p. 15, Batch Tests | [§4](#4-batch-configuration) |
+| Batch Test Template / Batch Link | Batch templates are generally organized by OSHA method; an Analysis Link Key / Batch Link record associates eligible analyses with batches. | `DOCUMENTED_REQUIREMENT` with conditional scope — S01 pp. 1–2; S02 pp. 13–15 | [§4](#4-batch-configuration) |
+| `INSTRUMENTS` | Instrument group and parameters support instrument selection, parsing and, for some workflows, Empower project identity. | `DOCUMENTED_DESCRIPTION` — S01 p. 2; S02 pp. 9, 19 | [§5](#5-instrument-configuration) |
+| `X_OCD_MONITORING` and `X_ANALYTE_CODE` | OCD records relate requested analyte codes and sample media to monitoring methods used in automated test assignment. | `DOCUMENTED_DESCRIPTION` — S02 pp. 6–7 | [§2](#2-ois-integration-project-and-sample-setup) |
+| LIMS Constant and parsing subroutines | Additional objects for instrument-file imports; not generally required for manual batches without file parsing. | `DOCUMENTED_DESCRIPTION` — S01 pp. 1, 3; S02 pp. 16–18 | [§6](#6-data-import-and-parsing) |
+
+**Boundary:** These are relationships described by the laboratory sources, not an independently verified LabWare schema. In particular, do not conflate the analysis child method mapping with the master `T_ANALYSIS_METHOD` table.
+
+### 1.2 Batch membership and analysis link identity
+
+**[ARCH-BATCH-01] — `DOCUMENTED_DESCRIPTION` — Applies to test batches.** S02 states that `TEST.BATCH` holds the batch name and that `BATCH_OBJECTS.OBJECT_ID = TEST.TEST_NUMBER`; samples are not directly attached to batches. This is the documented membership model, not a claim that every possible LabWare batch class uses the same relationship. **Evidence:** S02 p. 15, *Batch Tests*. **Details:** [§4](#4-batch-configuration).
+
+**[ARCH-LINK-01] — `DOCUMENTED_REQUIREMENT` — Applies when an analysis is batched.** S01 directs that the analysis Batch Link and batch template Analysis Link Key match the analysis name exactly, with a new Batch Link record for each analysis to be batched. S02 describes a Batch Link of type **Analysis Link Key** matching `ANALYSIS.NAME`, and separately states that the analysis Batch Link must match the batch template. Read these as linked laboratory configuration instructions; the exact underlying field names and lookup mechanics are not independently verified. **Evidence:** S01 pp. 1–2, *Analyses* and *Batch*; S02 pp. 9, 14–15, *Required Configuration* and *Batch Tests*. **Details:** [§3](#3-analysis-configuration), [§4](#4-batch-configuration).
+
+### 1.3 Method, variation and test-assignment dependencies
+
+**[ARCH-METHOD-01] — `DOCUMENTED_REQUIREMENT` — Applies to method/variation assignment.** S02 states that master methods must have a record in `T_ANALYSIS_METHOD` before the method/variation link can be configured, and that the analysis's method-to-variation pairs are used for test assignment at sample login. S01 likewise requires methods on associated variations to match the OSHA method identifier in the method table. **Evidence:** S01 p. 1; S02 pp. 10–11, *T_Analysis_Method* and *Methods*. **Details:** [§3](#3-analysis-configuration).
+
+**[ARCH-ASSIGN-01] — `DOCUMENTED_DESCRIPTION` — Applies to the documented OIS automated assignment workflow.** Assignment uses the requested analyte code and sample medium: S02 specifies a matching `X_OCD_MONITORING` record for analyte code and media, together with an analysis variation associated with the corresponding method. This describes the documented assignment prerequisites, not the complete implementation of inbound XML processing. **Evidence:** S02 pp. 6–7, *Test Assignment*. **Details:** [§2](#2-ois-integration-project-and-sample-setup).
+
+**[ARCH-MULTI-01] — `DOCUMENTED_DESCRIPTION` with `IMPLEMENTATION_EXAMPLE` — Applies only when compatible methods share a batch/variation.** S02 describes a related-method mechanism using `T_ANALYSIS_METHOD.X_RELATED_METHOD` to point from child to parent method, alongside the analysis method/variation association. Its GC example pairs method `OSHA_111` with variation `OSHA_5000_PASSIVE` whose variation method is `OSHA_5000`; the child method's related method is `OSHA_5000`. **Do not infer** that every method pair may be combined. **Evidence:** S02 pp. 15–16, *Multiple Methods*. **Details:** [§4](#4-batch-configuration); [Q03](#q03-methodvariation-relationships).
+
+### 1.4 Naming and matching conventions (architecture index)
+
+These are **laboratory-documented conventions**, not general vendor naming rules. The owning sections specify the fields and workflow conditions.
+
+| Convention or match | Documented scope | Evidence / destination |
+|---|---|---|
+| Analysis Batch Link / template Analysis Link Key ↔ `ANALYSIS.NAME` | Batched analyses; exact match required in source instructions | S01 pp. 1–2; S02 pp. 14–15; [§4](#4-batch-configuration) |
+| Batch template name or name prefix ↔ OSHA method name | Normal single-method batch setup; S01 requires exact template name, while S02 explicitly names the prefix | S01 p. 2; S02 pp. 13–14; [§4](#4-batch-configuration) |
+| Variation name `{method}_{variation type}` | Documented automated assignment and variation patterns, e.g. `_AIR`, `_QC`, `_QCSM`, `_ALIQUOT`; actual required variations depend on workflow | S01 p. 1; S02 pp. 10–11; [§3](#3-analysis-configuration) |
+| Batch instrument result Alias Name ↔ instrument group ↔ analysis instrument group | Instrument-file import or Empower as described; `X_STOCK` wording remains unresolved | S01 pp. 1–2; S02 pp. 9, 14; [§5](#5-instrument-configuration), [Q01](#q01-instrument-reference-fields) |
+| `SLTC_DATA_IMPORT_{analysisName}` | Documented instrument-file import constant | S01 p. 3; [§6](#6-data-import-and-parsing) |
+| `BM_SLTC_DATA_PARSE_{analysisName}` | Documented analysis-specific file parser name | S01 p. 3; S02 p. 17; [§6](#6-data-import-and-parsing) |
+| `BM_SLTC_DATA_PARSE_{analysisName}_{instrumentName}` | Instrument-specific parser when LabStation parsing is not used; instrument name ties to Parameter 1 value in S01 | S01 pp. 2–3; [§6](#6-data-import-and-parsing), [Q04](#q04-parser-dispatch) |
+| Reportable component Alias Name ↔ OIS analyte code | Outbound reporting of reportable field-sample results | S01 p. 2; S02 p. 13; [§7](#7-calculations-limits-and-reporting) |
+
+### 1.5 Conditional dependency map
+
+The following is a **source-derived planning sequence**, not a verified execution order or a complete implementation procedure:
+
+1. **For automated OIS test assignment:** establish OCD analyte/media/method mappings and the relevant master method and analysis variation/method relationships. See [§2](#2-ois-integration-project-and-sample-setup) and [§3](#3-analysis-configuration). (S02 pp. 6–7, 10–11.)
+2. **For a batched analysis:** establish its analysis/batch link relationship, method-oriented batch template and test membership configuration. See [§4](#4-batch-configuration). (S01 pp. 1–2; S02 pp. 13–15.)
+3. **For an instrument-file batch:** additionally establish the matching instrument identity/group, file-path constant, batch file result and parsing routines. See [§5](#5-instrument-configuration) and [§6](#6-data-import-and-parsing). (S01 pp. 1–3; S02 pp. 16–18.)
+4. **For Empower:** use the instrument and analysis relationships plus the project-specific interface configuration described in [§8](#8-empower-integration). Do not assume the file-parser requirements apply to Empower. (S02 pp. 12, 19–21.)
+5. **For manual data entry:** the S01 introduction says file-parser subroutines may be omitted when there is no file to parse; S02 separately describes manual batch-result checks. See [§4](#4-batch-configuration), [§9](#9-operational-workflows) and [Q09](#q09-manual-batch-checks). (S01 p. 1; S02 p. 16.)
+
+### 1.6 Limits of current evidence
+
+- **Unverified schema details:** Exact physical names and meanings of similarly named method tables, link keys, and instrument-reference fields require configuration/schema evidence; see [Q01](#q01-instrument-reference-fields) and [Q03](#q03-methodvariation-relationships).
+- **Unverified dispatch behavior:** The exact selection of instrument-specific parsing routines and which variables are mandatory at runtime require source-code evidence; see [Q04](#q04-parser-dispatch) and [Q05](#q05-parser-contract).
+- **No universal correctness inference:** The `ICP_OES` and GC examples illustrate configurations described by S01/S02, not validated templates for all analyses; see [§11](#11-established-configuration-examples).
+- **No vendor validation:** The separate LabWare 8 technical manual has not been provided to this project. Nothing in this section is classified `VENDOR_DOCUMENTED` or `VERIFIED`.
 
 ## 2. OIS Integration, Project, and Sample Setup
 
@@ -227,6 +285,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | Date | Change | Evidence/qualification |
 |---|---|---|
 | 2026-10-14 | Created Phase 3 canonical-document skeleton and topic ownership; registered existing S01/S02 by reference. | Structure based on `structure-review.md`, `source/manifest.md`, and reviewed crosswalk. No technical requirements consolidated or verified. |
+| 2026-10-14 | Populated §1 architecture and dependencies, with conditional scope, source references, and unresolved questions retained. | S01 pp. 1–3; S02 pp. 6–7, 9–11, 13–21. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
