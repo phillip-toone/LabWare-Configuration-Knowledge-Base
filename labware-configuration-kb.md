@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–4 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–5 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -298,11 +298,46 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 ## 5. Instrument Configuration
 
-**Owner:** Instrument records, instrument group identity, instrument parameters and links to batch/analysis configuration.
+**Scope:** Laboratory-documented instrument master-record settings and the relationships connecting instrument groups, batch instrument results, analysis configuration, instrument-file parsing, and Empower projects. This section owns instrument-record fields; batch component settings are owned by [§4](#4-batch-configuration), parser routines and directory constants by [§6](#6-data-import-and-parsing), and Empower project/interface setup by [§8](#8-empower-integration). **Evidence status:** S01/S02 source-documented instructions only; no instrument records, code, vendor manual, or executed tests have been independently examined.
 
-**To develop:** `INSTRUMENTS` configuration, Parameter 1 and Parameter 2 usage and scope. Parser dispatch details belong to §6; Empower-specific project checks belong to §8.
+### 5.1 Instrument group and analysis/batch matching
 
-**Sources to review:** S01 p. 2; S02 pp. 9, 15, 19. **Open:** [Q01](#q01-instrument-reference-fields), [Q04](#q04-parser-dispatch).
+**[INST-GROUP-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file import or Empower.** S02 instructs that the instrument's **Instrument Group** match the analysis **Inst Group** and the batch instrument-result identification. S01 describes the batch instrument-result **Alias Name** as matching the instrument group; S02's detailed batch instructions express this as `BATCH_COMPONENT.ALIAS_NAME = INSTRUMENT.INST_GROUP`. This is the documented group-matching convention for the described workflows, not a claim that all analyses need an instrument group. **Evidence:** S01 p. 1, *Analyses*, and p. 2, *Batch Result Components*; S02 p. 9, *Instrument Configuration* and *Analysis Configuration*, and p. 14, *Required Configuration*. **See:** [§3.1](#31-analysis-record-and-conditional-settings), [§4.4](#44-batch-result-components-and-reference-fields).
+
+**[INST-REF-01] — `UNRESOLVED` — Instrument batch-result reference.** S02 p. 9 additionally says the **Batch Result X_STOCK** field should match the instrument group when connecting an instrument to a batch. This differs from the Alias Name matching rule given in S01 and in S02's batch configuration instructions. Preserve both statements; **do not infer** whether `X_STOCK` is also required, represents a different object, or is an error. **Evidence:** S02 p. 9, *Instrument Configuration*; S01 p. 2; S02 p. 14. **Tracking:** [Q01](#q01-instrument-reference-fields).
+
+### 5.2 Instrument Parameter 1: laboratory instrument identifier
+
+**[INST-PARAM1-01] — `DOCUMENTED_REQUIREMENT` with conditional use — Instrument-specific parsing.** S01 describes setting **Instrument Parameter 1 Name = `NAME`** and **Parameter 1 Value = `{instrumentName}`** when using instrument-file parsing without a LabStation script; its example value is `HOOVER`. S02 likewise instructs that **Instrument Params → Parameter 1 Name** be `NAME` and **Parameter 1 Value** be the laboratory name for the instrument, noting that it may support instrument-specific configuration. These are laboratory conventions, not vendor-wide parameter semantics. **Evidence:** S01 p. 2, *Instruments*, and p. 3, *Instrument-specific parsing configuration*; S02 p. 9, *Instrument Configuration*.
+
+**[INST-PARAM1-02] — `DOCUMENTED_DESCRIPTION` — Parser naming dependency.** S01 specifies the instrument-specific subroutine pattern `BM_SLTC_DATA_PARSE_{analysisName}_{instrumentName}` when **not** using a LabStation parsing script, and states that the instrument-name suffix matches the instrument's Parameter 1 value. Examples `BM_SLTC_DATA_PARSE_ICP_OES_HOOVER` and `BM_SLTC_DATA_PARSE_ICP_OES_MILHOUSE` are `IMPLEMENTATION_EXAMPLE`s, not prescribed routines for other instruments. The exact selection/dispatch logic is not shown in the sources. **Evidence:** S01 pp. 2–3, *Instruments* and *Subroutine configuration*. **Implementation detail owner:** [§6](#6-data-import-and-parsing); **tracking:** [Q04](#q04-parser-dispatch).
+
+### 5.3 LabStation script versus instrument-specific parser
+
+**[INST-PARSE-01] — `DOCUMENTED_DESCRIPTION` — Instrument-generated files requiring parsing.** S01 describes two alternative instrument-side configurations: a **LabStation parsing script**, or **Instrument Parameter 1** used with an instrument-specific parsing subroutine. It does not document LabStation script setup, precedence when both approaches exist, or a complete runtime selection algorithm. S01 also states that subroutine configuration may be skipped when no data file is parsed. Do not impose instrument-file parser requirements on manual-only or Empower-only workflows. **Evidence:** S01 pp. 1–3, introduction, *Instruments*, and *Subroutine configuration*. **See:** [§6](#6-data-import-and-parsing), [Q04](#q04-parser-dispatch).
+
+### 5.4 Instrument Parameter 2 and Empower project association
+
+**[INST-PARAM2-01] — `DOCUMENTED_DESCRIPTION` — Analysis-specific instrument settings.** S02 states that **Parameter 2 Name/Value** are available for analysis-specific configuration, mentioning ICP-OES and GC as examples. No general value, format, or processing rule for Parameter 2 is provided for all analyses. **Evidence:** S02 p. 9, *Instrument Configuration*.
+
+**[INST-EMPOWER-01] — `DOCUMENTED_REQUIREMENT` — Documented OSHA Empower workflow.** S02 describes one Empower project per instrument for the OSHA use case. It directs setting `INSTRUMENTS.PARAMETER_2_NAME` to **`EMPOWER PROJECT`** and `INSTRUMENTS.PARAMETER_2_VALUE` to the **full Empower project name**; its example is `GC_Default\GC4 – LabWare1`. During batch processing, the selected batch instrument is compared with the project loaded in the Empower Interface; S02 says a mismatch prompts the user to switch projects. This is a source description of laboratory behavior, not an independently verified interface contract. **Evidence:** S02 p. 19, *Empower Batches / Instrument Configuration*. **Empower configuration owner:** [§8](#8-empower-integration).
+
+### 5.5 Instrument setup dependency checklist (source-derived)
+
+The following is a **planning aid**, not a verified UI sequence or a complete instrument qualification procedure:
+
+1. **When using file import or Empower:** establish the instrument group and ensure the relevant analysis and batch instrument-result references follow the documented group-matching convention. See [§3.1](#31-analysis-record-and-conditional-settings), [§4.4](#44-batch-result-components-and-reference-fields), and [Q01](#q01-instrument-reference-fields).
+2. **When using instrument-specific file parsing rather than LabStation:** establish the Parameter 1 `NAME` value and matching instrument-specific parser name. See [§6](#6-data-import-and-parsing) and [Q04](#q04-parser-dispatch).
+3. **When using the documented Empower integration:** establish the expected project in Parameter 2 and complete project-specific Empower interface configuration. See [§8](#8-empower-integration).
+4. **When no instrument file is parsed:** do not assume file-parser routines, path constants, or a Data File Source component are necessary merely because an instrument is used. See [§4.5](#45-pre-analysis-results-and-entry-mode-differences).
+
+### 5.6 Evidence limitations and verification priorities
+
+- **Instrument-reference ambiguity:** Confirm how `INSTRUMENT.INST_GROUP` / `INSTRUMENTS` group settings, `BATCH_COMPONENT.ALIAS_NAME`, and batch-result `X_STOCK` interact using actual configuration records. [Q01](#q01-instrument-reference-fields).
+- **Instrument identity:** Confirm physical field names and whether Parameter 1 values must be unique or satisfy particular case/character rules; neither source establishes these constraints.
+- **Parser dispatch:** Inspect the relevant parsing routines and LabStation configuration before treating the documented naming convention as proven runtime behavior. [Q04](#q04-parser-dispatch).
+- **Empower project validation:** Verify the exact project comparison and mismatch handling with instrument records, interface configuration, and a reproducible test. See [§8](#8-empower-integration), [G04](#g04-empower-exception-behavior).
+- **No vendor/runtime verification:** Nothing in §5 is classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`; instrument names and project paths in the sources are implementation examples.
 
 ## 6. Data Import and Parsing
 
@@ -440,6 +475,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §2 OIS integration, OCD, test assignment, and explicitly undocumented project/sample and receiving procedures. | S02 pp. 5–9, 10–11. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §3 analysis configuration, method/variation setup, components, attributes and aliquoting; retained conditional rules and unresolved questions. | S01 pp. 1–2; S02 pp. 9–13, 15–16. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §4 batch templates, test membership, protocols, QC/stock references, batch components and entry-mode distinctions; retained unresolved terminology and field questions. | S01 pp. 1–2; S02 pp. 8, 13–21. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §5 instrument groups, parameters, conditional parser identifiers, and Empower project association; retained instrument-reference and dispatch questions. | S01 pp. 1–3; S02 pp. 9, 14, 19. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
