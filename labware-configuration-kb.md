@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–2 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–3 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -179,11 +179,61 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 ## 3. Analysis Configuration
 
-**Owner:** Analysis record, master methods, method/variation links, variation and component configuration, attributes, aliquoting.
+**Scope:** Laboratory-documented setup of the `ANALYSIS` record, master method and variation associations, base and variation components, result attributes, and aliquoting. Batch templates and QC stock are owned by [§4](#4-batch-configuration); instrument records by [§5](#5-instrument-configuration); parser code by [§6](#6-data-import-and-parsing); calculations, reporting-limit application, and OIS output by [§7](#7-calculations-limits-and-reporting). **Evidence status:** S01/S02 instructions and examples only; no configuration export, routine code, vendor manual, or executed test independently verifies these statements.
 
-**To develop:** Conditional variation types; base versus variation component flags; reportable components' analysis-side setup; attributes; destructive flag; method mapping and aliquot logic. External reporting behavior belongs to §7.
+### 3.1 Analysis record and conditional settings
 
-**Sources to review:** S01 pp. 1–2; S02 pp. 9–13. **Open:** [Q02](#q02-component-requiredness), [Q03](#q03-methodvariation-relationships), [Q07](#q07-reportability-semantics).
+**[ANA-RECORD-01] — `DOCUMENTED_REQUIREMENT` — Batched analyses.** S01 instructs that the analysis **Batch Link** match the analysis name exactly and that a Batch Link Table record be created for each analysis to be batched. S02 also instructs that the analysis Batch Link match the batch template. The linked batch-side setup is owned by [§4](#4-batch-configuration); see the architecture summary [§1.2](#12-batch-membership-and-analysis-link-identity). **Evidence:** S01 p. 1, *Analyses*; S02 p. 9, *Required Configuration*.
+
+**[ANA-INST-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports or Empower.** The analysis **Instruments → Inst Group** must match the group of the instrument providing the data, including the corresponding instrument component on the batch template. S01 describes the batch result Alias Name as the matching instrument-group value. S02 contains additional `X_STOCK` wording that is not reconciled here. **Evidence:** S01 p. 1, *Analyses*; S02 p. 9, *Required Configuration*. **See:** [§5](#5-instrument-configuration), [Q01](#q01-instrument-reference-fields).
+
+**[ANA-DESTRUCT-01] — `DOCUMENTED_REQUIREMENT` with qualified scope — Destructive analyses.** S02 instructs setting **Other Fields → Destructive** to True for *most analyses that conduct destructive testing* and cautions that this may prevent additional analyses from being assigned at sample creation. This is not a universal setting and the exact assignment impact is not verified. **Evidence:** S02 pp. 9–10, *Required Configuration*. **See:** [§2](#2-ois-integration-project-and-sample-setup).
+
+### 3.2 Master methods, analysis methods, and variations
+
+**[ANA-METHOD-01] — `DOCUMENTED_REQUIREMENT` — Method/variation setup.** S02 says a master method must exist in `T_ANALYSIS_METHOD` before linking methods and variations on `ANALYSIS`. The analysis child **Analysis Methods** configuration pairs each method with a variation, and S02 says every method–variation pair used for sample-login assignment must be populated. S01 instructs variations to have methods matching the configured OSHA method ID. **Do not conflate** `T_ANALYSIS_METHOD` with the analysis child table described as `ANALYSIS_METHOD` / `ANALYSIS_METHODS` in S02. **Evidence:** S01 p. 1, *Analyses*; S02 pp. 10–11, *T_Analysis_Method* and *Methods*, and pp. 15–16, *Multiple Methods*. **See:** [§1.3](#13-method-variation-and-test-assignment-dependencies), [Q03](#q03-methodvariation-relationships).
+
+**[ANA-VAR-01] — `DOCUMENTED_REQUIREMENT` — Variations for the applicable workflow.** S02 says every analytical method has one or more variations and uses the naming pattern `{OSHA method}_{variation type}` for automated analysis assignment. Field-sample variation types are described for **AIR**, **WIPE**, and **BULK**; QC and QCSM variations are described for standard samples; an **ALIQUOT** variation is described when aliquoting is required. S01 specifically instructs creation of `{method}_QC` and `{method}_QCSM` **if the batch uses** those respective samples. These are conditional types, not a checklist requiring all variations for every analysis. **Evidence:** S01 p. 1, *Analyses*; S02 pp. 10–11, *Variations*. **Examples:** `OSHA_5000_AIR`, `OSHA_1023_QCSM`, `OSHA_5001_ALIQUOT` (`IMPLEMENTATION_EXAMPLE`, S02 pp. 10–11).
+
+**[ANA-VAR-02] — `DOCUMENTED_REQUIREMENT` — Variation properties.** S02 instructs assigning applicable **Sample Type** values to field-sample variations, leaving Sample Type empty for QC variations, and linking the analytical method in variation properties. S02 does not specify the full set of actual stored Sample Type values or the behavior when multiple variations qualify. **Evidence:** S02 p. 11, *Variations*. **See:** [§2.3](#23-automated-test-assignment-prerequisites), [Q03](#q03-methodvariation-relationships).
+
+**[ANA-MULTI-01] — `DOCUMENTED_DESCRIPTION` / `IMPLEMENTATION_EXAMPLE` — Compatible methods only.** S02 documents a related-method exception: the analysis method/variation mapping can associate a child method with a variation whose own method is the parent, with `T_ANALYSIS_METHOD.X_RELATED_METHOD` pointing to the parent. The `GC` / `OSHA_111` / `OSHA_5000_PASSIVE` example is indexed in [§1.3](#13-method-variation-and-test-assignment-dependencies); batch compatibility rules belong to [§4](#4-batch-configuration). **Evidence:** S02 pp. 15–16, *Multiple Methods*. Do not assume arbitrary methods are interchangeable.
+
+### 3.3 Base components versus variation components
+
+**[ANA-COMP-01] — `DOCUMENTED_REQUIREMENT` — Analyses with multiple variations; broader applicability stated by S02.** S01 directs that when multiple variations are configured, base components be **Optional = T**, **Reportable = F**, **Displayed = F**; variation components should be **Displayed = T**. S02 instructs that base components be **Optional = T** and **Displayed = F** to avoid showing on other variations, and that variation components be displayed. Preserve the difference in scope and wording; neither source establishes every interaction among base and variation flags. **Evidence:** S01 p. 1, *Analyses*; S02 pp. 11–12, *Component Variations* and *Components*. **See:** [Q02](#q02-component-requiredness), [Q07](#q07-reportability-semantics).
+
+**[ANA-COMP-02] — `DOCUMENTED_REQUIREMENT` — Variation-specific component configuration.** Assign the result components needed by the variation; S02 gives a **BULK** variation's sample-weight component as an example of a component not needed by **AIR** or **QC** variations. S02 says variation components may be **Optional = F** depending on the analysis, while **Displayed = T**. Do not confuse variation component optionality with the batch-result requiredness controls in [§4](#4-batch-configuration). **Evidence:** S02 p. 11, *Component Variations*. **See:** [Q02](#q02-component-requiredness).
+
+**[ANA-COMP-03] — `DOCUMENTED_REQUIREMENT` — Final results intended for reporting.** S01 directs **Reportable = T** on the component variation for results intended for review/release and OIS XML; S02 directs that **only final field-sample results** be reportable for outbound OIS/report delivery and that the variation-level flag be set. S02 says reportability *may also* be set at the original component level, whereas S01 specifies **Reportable = F** for base components in multi-variation analyses. Preserve these separate source instructions and do not resolve precedence without evidence. **Evidence:** S01 pp. 1–2, *Analyses*; S02 pp. 11–13, *Component Variations* and *Reportable Results*. **See:** [§7](#7-calculations-limits-and-reporting), [Q07](#q07-reportability-semantics).
+
+**[ANA-COMP-04] — `DOCUMENTED_REQUIREMENT` — Reportable components sent to OIS.** The reportable component **Alias Name** should match the OIS analyte code. Both sources give Beryllium (Final) for `OSHA_1023` with Alias Name `0365` as an **implementation example**, not a general-purpose alias. **Evidence:** S01 p. 2, *Analyses*; S02 p. 13, *Reportable Results*. **See:** [§7](#7-calculations-limits-and-reporting).
+
+### 3.4 Attributes and instrument-result component flags
+
+**[ANA-ATTR-01] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — File-parsed results with attributes.** The documented analysis-specific parser supports up to **five** result attributes (`ATTRIBUTE_1`–`ATTRIBUTE_5`), configured/named at the analysis level and populated by the parser where used. S01 says these may contain relevant data associated with result entry; S02 ties them to the analysis-specific parsing routine. The `ICP_OES` example uses **Wavelength**, **Dilution Factor**, **%RSD**, **Timestamp**, and **Interferences**. These names are an `IMPLEMENTATION_EXAMPLE`, not required attributes for other analyses. **Evidence:** S01 p. 1; S02 pp. 11–12, *Data Parsing*. **See:** [§6](#6-data-import-and-parsing).
+
+**[ANA-RAW-01] — `DOCUMENTED_REQUIREMENT` — Raw results populated by instrument file or Empower.** S02 instructs setting **Uses Instrument = T** on raw result components receiving instrument data, and **Has Attributes = T** where attributes are returned from the file or Empower. This is conditional on the data source and result design. **Evidence:** S02 p. 12, *Components*. **See:** [§6](#6-data-import-and-parsing), [§8](#8-empower-integration).
+
+**[ANA-EMPOWER-01] — `DOCUMENTED_REQUIREMENT` with `DOCUMENTED_DESCRIPTION` rationale — Empower peak components.** S02 directs a **Text** data type even for numeric-looking Empower peak results because a missing peak may be returned as `ND` rather than `0`, and describes a type mismatch otherwise. This is an Empower-specific configuration instruction, **not** a general rule for all numeric analysis components. **Evidence:** S02 p. 12, *Empower*. **Owning interface details:** [§8](#8-empower-integration).
+
+### 3.5 Aliquoting and dynamically assigned testing
+
+**[ANA-ALIQUOT-01] — `DOCUMENTED_DESCRIPTION` — Media requiring aliquots.** S02 describes an auto-aliquoting workflow in which `VWF_SLTC_TESTING_BATCH_CREATE` checks `X_OCD_MONITORING.NUM_ALIQUOT` for the method/media when a sample is added to a batch, assigns additional testing, and automatically aliquots to child samples. S02 also requires a separate method aliquot variation when aliquoting is needed. This is a described laboratory workflow, not verified code behavior or a universal rule for all sample media. **Evidence:** S02 p. 11, *Variations* and *Aliquoting*. **See:** [§2](#2-ois-integration-project-and-sample-setup), [§4](#4-batch-configuration), [§9](#9-operational-workflows).
+
+### 3.6 Analysis-side calculation and reporting dependencies (references only)
+
+**[ANA-CALC-REF] — `DOCUMENTED_REQUIREMENT` — File-import final results.** Both sources instruct setting final-result calculations **AutoCalculate = F** for batch file imports to control dependencies between blanks and field unknowns; S02 permits **AutoCalculate = T** for manual entry or Empower. Detailed sequencing and limits belong exclusively to [§7](#7-calculations-limits-and-reporting). **Evidence:** S01 p. 2; S02 p. 12, *Components*. **See:** [Q06](#q06-calculation-mode).
+
+**[ANA-LIMIT-REF] — `DOCUMENTED_DESCRIPTION` — Analysis limits.** Both sources state that Analysis Limits are **not checked inherently** in the described configuration and must be applied during result calculations; S02 discusses reporting-limit propagation. Detailed rules, `CALC_ICP_FINAL`, and formatting belong to [§7](#7-calculations-limits-and-reporting). **Evidence:** S01 p. 1; S02 p. 10, *Analysis Limits* and *Reporting Limits*.
+
+### 3.7 Evidence limits and verification needs
+
+- **Method-table identity:** The sources use `ANALYSIS_METHOD` and `ANALYSIS_METHODS` and distinguish them from `T_ANALYSIS_METHOD`; confirm physical names and relationships before SQL or automation. [Q03](#q03-methodvariation-relationships).
+- **Component flag precedence:** Variation-level requiredness, base-level reportability, and their effect on display and external reporting require real configuration and output evidence. [Q02](#q02-component-requiredness), [Q07](#q07-reportability-semantics).
+- **Destructive and aliquot effects:** The actual sample-login restrictions and `VWF_SLTC_TESTING_BATCH_CREATE` behavior require code and reproducible workflow evidence.
+- **Source-specific conventions:** The examples for `ICP_OES`, `GC`, and named OSHA methods are not evidence of correct configuration for unrelated analyses; see [§11](#11-established-configuration-examples).
+- **No vendor/runtime verification:** Nothing in §3 is `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED` at this stage.
 
 ## 4. Batch Configuration
 
@@ -335,6 +385,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Created Phase 3 canonical-document skeleton and topic ownership; registered existing S01/S02 by reference. | Structure based on `structure-review.md`, `source/manifest.md`, and reviewed crosswalk. No technical requirements consolidated or verified. |
 | 2026-10-14 | Populated §1 architecture and dependencies, with conditional scope, source references, and unresolved questions retained. | S01 pp. 1–3; S02 pp. 6–7, 9–11, 13–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §2 OIS integration, OCD, test assignment, and explicitly undocumented project/sample and receiving procedures. | S02 pp. 5–9, 10–11. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §3 analysis configuration, method/variation setup, components, attributes and aliquoting; retained conditional rules and unresolved questions. | S01 pp. 1–2; S02 pp. 9–13, 15–16. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
