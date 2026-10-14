@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–10 populated from registered sources and source-derived recommendations, §§11–14 remain evidence registers or partial skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–11 populated from registered sources and source-derived recommendations; §§12–14 remain evidence registers or partial skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -647,15 +647,58 @@ The checks below are **recommended tests to design and record**, not claims that
 
 ## 11. Established Configuration Examples
 
-**Owner:** Method-specific records, deviations, observed choices, and verified examples. Every example must identify its analysis, method, configuration snapshot, evidence, and applicability.
+**Scope:** Index the *specific analyses, methods, instruments, and example values* actually named in S01/S02. This section records their described use and evidence limitations; reusable configuration instructions remain exclusively in §§1–8. **“Established” in this heading does not mean independently verified.** No configuration exports, subroutine source, instrument records, or executed test evidence have been supplied. The entries below are `IMPLEMENTATION_EXAMPLE` or `DOCUMENTED_DESCRIPTION`, **not** `OBSERVED` or `VERIFIED`.
 
-### 11.1 ICP_OES / OSHA_1023
+### 11.1 ICP_OES / OSHA_1023 — instrument-file import example
 
-**Status:** Source example identified, **not yet consolidated or independently verified**. See S01 pp. 1–3; S02 pp. 11–12 and related references. Link reusable rules to §§3–7 rather than duplicating them.
+**[EX-ICP-01] — `IMPLEMENTATION_EXAMPLE` — Analysis `ICP_OES`, method `OSHA_1023`.** S01 identifies this as the **first configured batch**, describing unusually complex data parsing, ordered code execution, and linked references. This is the motivating example for much of S01's guidance, **not** evidence that its method-specific values should be copied to other analyses. **Evidence:** S01 p. 1, introduction.
 
-### 11.2 Other named analyses
+| Source-described example detail | Evidence | Reusable rule / limitation |
+|---|---|---|
+| Five result attributes: **Wavelength**, **Dilution Factor**, **%RSD**, **Timestamp**, **Interferences** | S01 p. 1; S02 p. 12 | [§3.4](#34-attributes-and-instrument-result-component-flags); other analyses may choose different attributes. |
+| QC and QCSM variation names illustrated by `OSHA_1023_QC` and `OSHA_1023_QCSM` | S01 p. 1; S02 pp. 10–11 | [§3.2](#32-master-methods-analysis-methods-and-variations); create types only when applicable. |
+| Batch template named `OSHA_1023` | S01 p. 2 | [§4.1](#41-batch-template-identity-and-core-settings); exact name is an example of the method-based convention. |
+| Before file processing, laboratory solutions and instruments **except the balance** must be entered | S01 p. 2 | [§4.5](#45-pre-analysis-results-and-entry-mode-differences); example of required pre-analysis entries, not a general exemption for balances. |
+| Reportable **Beryllium (Final)** component alias `0365` | S01 p. 2; S02 p. 13 | [§3.3](#33-base-components-versus-variation-components), [§7.5](#75-reportable-components-analyte-codes-and-ois-output); preserve leading zero. |
+| File-path constant example `SLTC_DATA_IMPORT_ICP_OES` and wildcard `D:\OIS Integration\Inbound ICP Results\*.csv` | S01 p. 3 | [§6.1](#61-file-location-and-batch-prerequisites); path is an example, not a currently verified server location. |
+| Analysis parser `BM_SLTC_DATA_PARSE_ICP_OES` | S01 p. 3 | [§6.2](#62-import-entry-point-and-parser-dispatch); no parser source supplied. |
+| Instrument-specific parser names `BM_SLTC_DATA_PARSE_ICP_OES_HOOVER` and `BM_SLTC_DATA_PARSE_ICP_OES_MILHOUSE`; `HOOVER` also illustrates Parameter 1 value | S01 pp. 2–3 | [§5.2](#52-instrument-parameter-1-laboratory-instrument-identifier), [§6.2](#62-import-entry-point-and-parser-dispatch); dispatch not verified. |
+| `BM_SLTC_DATA_PARSE_ICP_OES` described as constructing a `batchOrderArr` with test number, timestamp, and sample number; **only column 1** drives ordering | S01 p. 3 | [§6.5](#65-result-replication-and-batch-reordering); timestamps and post-import test addition are example-specific. |
+| `CALC_ICP_FINAL` cited as a calculation that references Analysis Limits; `ICP_LOWER_LIMIT` cited as a reporting-limit format calculation | S01 p. 1; S02 pp. 10, 13 | [§7.1](#71-analysis-limits-and-enforcement-boundary), [§7.2](#72-lower-reporting-limit-and-final-result-propagation); no calculation code or validated output supplied. |
 
-**Status:** S02 p. 21 lists `SILICA_XRD`, `GRAV_PREWEIGH`, and `GRAV_POSTWEIGH` headings without substantive analysis-specific instructions. **Do not infer configuration details.**
+**Evidence boundary:** These examples are dispersed across S01/S02; they do not constitute a complete exported `ICP_OES` configuration or a successful end-to-end test. Verify actual variation records, component flags, parser routines, calculations, batch protocol, and output before using this as a template. See [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [Q06](#q06-calculation-mode), and [G02](#g02-parser-failure-and-recovery).
+
+### 11.2 GC — related-method batching example
+
+**[EX-GC-01] — `IMPLEMENTATION_EXAMPLE` — Analysis `GC`, child method `OSHA_111`, parent method `OSHA_5000`.** S02 gives this **specific** compatible-method arrangement:
+
+| Record / relationship | Example value in S02 |
+|---|---|
+| Analysis Variation `OSHA_5000_PASSIVE` → Method | `OSHA_5000` |
+| Analysis Method → Method / Variation | `OSHA_111` / `OSHA_5000_PASSIVE` |
+| `T_ANALYSIS_METHOD` record `OSHA_111` → `X_RELATED_METHOD` | `OSHA_5000` |
+
+**Evidence:** S02 pp. 15–16, *Multiple Methods*. **Reusable rules:** [§3.2](#32-master-methods-analysis-methods-and-variations), [§4.2](#42-test-membership-and-compatible-methods). The source does not establish which other method pairs are compatible, or independently demonstrate successful combined-batch execution. **Open:** [Q03](#q03-methodvariation-relationships).
+
+### 11.3 Empower-related examples (not a complete GC configuration)
+
+**[EX-EMP-01] — `IMPLEMENTATION_EXAMPLE`.** S02 uses `GC_Default\GC4 – LabWare1` as an example full Empower project name for instrument Parameter 2 (`EMPOWER PROJECT`). It also names an existing **MeCl2 (OSHA 1025)** project as the starting mapping to copy using **Save As** when onboarding a new project. These are **two distinct examples**; the source does not establish that the MeCl2 mapping is a verified mapping for every GC method or that the example project path remains current. **Evidence:** S02 pp. 19–20, *Empower Batches* and *LabWare Empower Interface*. **Canonical details:** [§5.4](#54-instrument-parameter-2-and-empower-project-association), [§8.1](#81-instrument-association-and-project-validation), [§8.3](#83-labware-empower-interface-mapping-setup).
+
+### 11.4 Other named variations and analyses — evidence inventory
+
+| Identifier in S02 | What is actually documented | What remains unknown |
+|---|---|---|
+| `OSHA_5000_AIR` | Example of an AIR field-sample variation (p. 11). | Its actual component set, batch, instrument, and verified assignment behavior. |
+| `OSHA_5001_ALIQUOT` | Example of an aliquot variation (p. 11). | Which method/media require it and the implemented aliquot workflow. |
+| `SILICA_XRD` | Heading under *Specific Analysis Configuration Notes* (p. 21). | No substantive analysis-specific configuration provided. |
+| `GRAV_PREWEIGH` | Heading under *Specific Analysis Configuration Notes* (p. 21). | No substantive analysis-specific configuration provided. |
+| `GRAV_POSTWEIGH` | Heading under *Specific Analysis Configuration Notes* (p. 21). | No substantive analysis-specific configuration provided. |
+
+**[EX-OTHER-OPEN] — `UNRESOLVED`.** The final three names are **placeholders for future evidence**, not established examples. Do not invent their methods, components, parsing approach, calculations, or relationship to one another. **Evidence:** S02 pp. 11, 21. **General variation rules:** [§3.2](#32-master-methods-analysis-methods-and-variations).
+
+### 11.5 Promoting an example to an evidence-backed implementation
+
+**[EX-EVIDENCE-01] — `RECOMMENDATION`.** For each analysis eventually documented as implemented, attach or register a dated configuration snapshot (analysis, method/variation, components, batch template, instruments, calculations, and relevant integration mappings), identify the environment and version, and link reproducible test evidence where available. Distinguish a configuration merely **inspected** (`OBSERVED`) from a behavior actually **tested** (`VERIFIED`). Record deviations in this section, generalizable rules in their owning §§1–8, and unresolved questions in [§13](#13-open-questions-and-undocumented-areas). This is a proposed maintenance practice, not a requirement stated by S01/S02.
 
 ## 12. Troubleshooting and Verified Behaviors
 
@@ -748,6 +791,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §9 operational stage boundaries from OIS intake through receiving, batch testing, review and closure; preserved undocumented procedures and mode-specific limits. | S01 pp. 1–2; S02 pp. 5–9, 11–19. Source-documented, not independently verified. |
 
 | 2026-10-14 | Populated §10 with a source-derived implementation checklist, mode-specific branches, and proposed verification checkpoints; no new technical requirements or verified outcomes asserted. | S01 pp. 1–3; S02 pp. 5–21; cross-references to §§1–9. Recommended sequence, not validated SOP. |
+| 2026-10-14 | Populated §11 with source-described ICP_OES, GC, Empower, and named-variation examples; identified empty analysis headings and retained verification boundaries. | S01 pp. 1–3; S02 pp. 10–13, 15–16, 19–21. Examples only, not inspected or verified configurations. |
 
 ### 14.3 Maintenance procedure
 
