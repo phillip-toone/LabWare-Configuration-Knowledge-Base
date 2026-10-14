@@ -113,6 +113,18 @@ The following is a **guidance-derived planning sequence**, not a verified execut
 
 **Not established:** The XML schema location, parsing and validation rules, staging-table structures, investigation handling, and the exact mechanism that creates LabWare projects and samples are headings without sufficient procedure in the laboratory guidance. Do not infer these from the SFTP description. **Tracking:** [G01](#g01-xml-and-projectsample-setup).
 
+### 2.1.1 OSHA_LIMS_DEV inbound inspection XML directory
+
+**[OIS-PATH-01] — `DOCUMENTED_DESCRIPTION` (operator-reported; runtime verification pending).** On 2026-10-14, the OSHA ID-110 validation operator identified the following directory for placing inbound OIS inspection-request XML files in `OSHA_LIMS_DEV`:
+
+```text
+D:\OIS Integration\Inbound Inspection XML
+```
+
+**Applicability:** OSHA_LIMS_DEV inbound inspection-request XML, including the planned controlled validation request `485931`. This is not an instrument-results import directory and must not be confused with the paths in §6.
+
+**Evidence boundary:** The directory was supplied by the operator. Successful processing of request `485931` has not yet been observed. Automatic pickup, polling schedule, file movement, XML validation, duplicate handling, project/sample creation, and failure recovery remain unverified. See [G01](#g01-xml-and-projectsample-setup).
+
 ### 2.2 Occupational Chemical Database reference tables
 
 **[OIS-OCD-01] — `DOCUMENTED_DESCRIPTION` — Applies to the OCD representation described for this implementation.** The OCD originated as a document on the DOL intranet and was subsequently parsed into the following four LabWare tables. Their roles are **laboratory descriptions**, not independently checked schema definitions.
@@ -530,6 +542,8 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 **[WF-LOGIN-OPEN] — `UNRESOLVED` — Project and sample creation.** The laboratory guidance names *XML Parsing and Validation*, *Staging Tables*, *Investigations*, *Project Template*, and *Sample Template* but supplies no actionable sequence for these stages. Its documented analyte-code/media method-assignment prerequisites are maintained in [§2.3](#23-automated-test-assignment-prerequisites); they are **not** a complete login workflow. **Open:** [G01](#g01-xml-and-projectsample-setup).
 
+**DEV intake directory reference:** For the operator-reported inbound inspection-request XML location, see [OIS-PATH-01](#211-osha_lims_dev-inbound-inspection-xml-directory) in §2.1.1. The path is not yet evidence of successful XML processing or sample creation. See [G01](#g01-xml-and-projectsample-setup).
+
 ### 9.2 Sample receiving
 
 **[WF-RECEIVE-OPEN] — `UNRESOLVED` — Receiving operations.** The laboratory guidance lists *Sample Receiving Workflow*, *Seal Status*, and *Label Printing* without documenting operator actions, required fields, label layouts, acceptance criteria, or status transitions. Do not infer an executable receiving SOP from these headings.  **Needed evidence:** receiving workflow configuration, sanitized example records, and an observed test.
@@ -779,6 +793,8 @@ The Q01–Q09 and G01–G04 identifiers are preserved as **unresolved investigat
 #### G01 — XML and project/sample setup
 
 **Status:** `UNRESOLVED`. **Question:** Document validation, creation, failure, and investigation handling. **Owner:** §2.1–2.4; §9.1. **Evidence needed:** Sanitized XML/XSD, staging tables, intake routines, project/sample templates. **Priority:** High — OIS intake.
+
+**2026-10-14 partial documentation update:** The operator identified `D:\OIS Integration\Inbound Inspection XML` as the inbound inspection-request XML directory for `OSHA_LIMS_DEV`. This is recorded under [OIS-PATH-01](#211-osha_lims_dev-inbound-inspection-xml-directory). The directory's processing behavior remains unverified. G01 stays `UNRESOLVED` pending intake, validation, sample-creation, and failure-handling evidence.
 
 #### G02 — Parser failure and recovery
 
