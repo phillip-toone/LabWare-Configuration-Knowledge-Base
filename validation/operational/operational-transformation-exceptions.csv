@@ -1,8 +1,9 @@
-exception_type,location_or_id,detail,disposition
-residual-reference,589,| 2 | **Establish method records and associations:** identify the master `T_ANALYSIS_METHOD` record and configure applicable analysis method-to-variation pairs. Treat related-method exceptions separately. | [§3.2](#32-master-methods-analysi,Review recommended; no technical resolution inferred
-heading-change,5.5 Instrument setup dependency checklist (source-derived),Technical heading not identical,Review recommended; no technical resolution inferred
-heading-change,8.4 Sample Set Method mapping (source table),Technical heading not identical,Review recommended; no technical resolution inferred
-heading-change,8.5 Result Set mapping (source table),Technical heading not identical,Review recommended; no technical resolution inferred
-heading-change,9.6 Source-derived stage map and verification priorities,Technical heading not identical,Review recommended; no technical resolution inferred
-heading-change,10.2 Common configuration path (source-derived prerequisites),Technical heading not identical,Review recommended; no technical resolution inferred
-heading-change,12.1 Source-described failure conditions and investigation leads,Technical heading not identical,Review recommended; no technical resolution inferred
+exception_id,location,subject,editorial_disposition,remaining_uncertainty,status
+OP-EX-001,1.2 / 3.1 / 4.1,Batch Link and Analysis Link Key relationships,Distinct source formulations retained; no key identity or lookup behavior inferred.,Q01/Q03 and batch-link interpretation remain unverified.,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-002,3.3 / 7.5,Base versus variation Reportable flags,"Separate instructions retained, including permission for base-level reportability.",Precedence and output behavior remain unresolved (Q07).,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-003,4.5 / 6.1,Optional = F versus Required = T,Both labels preserved; no equivalence asserted.,Actual gating field semantics require verification (Q02).,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-004,5.1 / 4.4,Instrument Alias Name versus X_STOCK,Both instrument-reference formulations retained.,Lookup mechanics remain unresolved (Q01).,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-005,6.3,Parser return-variable contract,Optional/conditional and additional return descriptions preserved; no new mandatory claims.,Which returns are required at runtime remains unresolved (Q05).,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-006,7.3,Calculation execution modes,AutoCalculate values and conditional workflow scope retained.,Runtime sequencing remains unresolved (Q06).,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-007,8.4 / 8.5,Empower mapping table identifiers,All inline code strings and field identifiers preserved.,Mapping direction and unusual RESULT.MILL_RES_NUM require actual schema/interface evidence.,OPEN / NO TECHNICAL RESOLUTION
+OP-EX-008,Baseline comparison,Git commit 419cd7a not independently fetched,Compared against the supplied operational document snapshot; committed Git object unavailable locally.,Exact byte-for-byte equality of uploaded snapshot to commit 419cd7a not established.,OPEN / NO TECHNICAL RESOLUTION
