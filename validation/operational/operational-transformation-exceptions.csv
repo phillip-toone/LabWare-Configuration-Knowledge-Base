@@ -1,0 +1,8 @@
+exception_type,location_or_id,detail,disposition
+residual-reference,589,| 2 | **Establish method records and associations:** identify the master `T_ANALYSIS_METHOD` record and configure applicable analysis method-to-variation pairs. Treat related-method exceptions separately. | [§3.2](#32-master-methods-analysi,Review recommended; no technical resolution inferred
+heading-change,5.5 Instrument setup dependency checklist (source-derived),Technical heading not identical,Review recommended; no technical resolution inferred
+heading-change,8.4 Sample Set Method mapping (source table),Technical heading not identical,Review recommended; no technical resolution inferred
+heading-change,8.5 Result Set mapping (source table),Technical heading not identical,Review recommended; no technical resolution inferred
+heading-change,9.6 Source-derived stage map and verification priorities,Technical heading not identical,Review recommended; no technical resolution inferred
+heading-change,10.2 Common configuration path (source-derived prerequisites),Technical heading not identical,Review recommended; no technical resolution inferred
+heading-change,12.1 Source-described failure conditions and investigation leads,Technical heading not identical,Review recommended; no technical resolution inferred
