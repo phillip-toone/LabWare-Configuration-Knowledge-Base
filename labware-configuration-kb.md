@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §1 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–2 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -123,11 +123,59 @@ The following is a **source-derived planning sequence**, not a verified executio
 
 ## 2. OIS Integration, Project, and Sample Setup
 
-**Owner:** Inbound OIS request processing, OCD data model, media/analyte-to-test assignment, project/sample templates, receiving dependencies.
+**Scope:** This section owns the documented OIS request-intake boundary, Occupational Chemical Database (OCD) reference data, and automated sample test-assignment prerequisites. It also records what the sources do **not** yet explain about project/sample creation and receiving. Analysis method and variation setup is owned by [§3](#3-analysis-configuration); operational receiving and release workflows are owned by [§9](#9-operational-workflows). **Evidence status:** S02 source-documented only; no XML samples, schema, scripts, configuration exports, or executed tests have been provided.
 
-**To develop:** SFTP/shell-script intake boundaries, XML validation/staging, `X_OCD_MONITORING` relationships, sample media, project and sample setup. Undocumented template and validation steps must remain marked as gaps.
+### 2.1 End-to-end OIS context and intake boundary
 
-**Sources to review:** S02 pp. 6–8. **Open:** [G01](#g01-xml-and-projectsample-setup).
+**[OIS-CONTEXT-01] — `DOCUMENTED_DESCRIPTION` — Applies to the documented OTC/OIS workflow.** S02 describes receiving testing requests from OIS, creating and managing samples and associated analyses in LabWare, reporting results, and generating a response file to OIS. This is the stated scope of the workflow, **not** evidence that each stage is configured or validated. **Evidence:** S02 p. 5, *Purpose*. **See also:** [§9](#9-operational-workflows), [G01](#g01-xml-and-projectsample-setup), [G03](#g03-release-and-ois-response).
+
+**[OIS-TRANSFER-01] — `DOCUMENTED_DESCRIPTION` — Applies to inbound OIS requests and instrument files as described in S02.** S02 says both file types arrive by SFTP, outside native LabWare functionality; Windows shell scripts executed by a LabWare background instance handle the transfers. The scripts and server directory layouts vary by application. S02 states that each script consists of a `.bat` and a `.txt` file, but does not provide script contents, schedules, retry rules, path details, or authentication configuration. **Evidence:** S02 p. 6, *File Transfer Process* and *Shell Script Maintenance*. **See also:** [§6](#6-data-import-and-parsing) for instrument-result file processing, which is a separate concern.
+
+**Not established:** The XML schema location, parsing and validation rules, staging-table structures, investigation handling, and the exact mechanism that creates LabWare projects and samples are headings without sufficient procedure in S02 p. 6. Do not infer these from the SFTP description. **Tracking:** [G01](#g01-xml-and-projectsample-setup).
+
+### 2.2 Occupational Chemical Database reference tables
+
+**[OIS-OCD-01] — `DOCUMENTED_DESCRIPTION` — Applies to the OCD representation described for this implementation.** S02 says the OCD originated as a document on the DOL intranet and was parsed into the following four LabWare tables. Their roles are **source descriptions**, not independently checked schema definitions. **Evidence:** S02 p. 7, *Occupational Chemical Database (OCD)*.
+
+| Table | Role described in S02 |
+|---|---|
+| `X_OCD_STANDARD` | Holds standard/material-group names and associated hazard information; parent of the other OCD tables. |
+| `X_OCD_MONITORING` | Monitoring-method records; links `X_ANALYTE_CODE` to `X_OCD_STANDARD` and holds testing methods for analyte codes according to sample media. |
+| `X_OCD_PHYS_PROP` | Physical properties of a standard. |
+| `X_OCD_LITERATURE` | Literature references for a standard, organized by source. |
+
+**[OIS-CODE-01] — `DOCUMENTED_DESCRIPTION` — Applies to analyte-code identity in the documented OCD.** S02 calls analyte codes *substance codes* or *IMIS codes* and describes them as unique identifiers pairing standards with test methods. It states that one standard may have multiple analyte codes, while each analyte code belongs to one standard. The code is a **four-character alphanumeric primary key** in `X_ANALYTE_CODE`. Preserve codes as strings, including leading zeroes; this handling is a data-integrity recommendation inferred from the documented identifier format, not a separately documented LabWare setting. **Evidence:** S02 p. 7, *Analyte Code*. **See also:** [§7](#7-calculations-limits-and-reporting) for outbound reportable-result aliases.
+
+**[OIS-MEDIA-01] — `DOCUMENTED_DESCRIPTION` — Applies to the documented sample categories.** S02 identifies three sample categories: **Air**, **Wipe**, and **Bulk**, with distinct entries in the monitoring-method data. The document does not establish the exact database values, case sensitivity, or the full list of media records for each category. **Evidence:** S02 p. 7, *Sample Types*.
+
+### 2.3 Automated test-assignment prerequisites
+
+**[OIS-ASSIGN-01] — `DOCUMENTED_REQUIREMENT` — Applies when an inbound OIS sample is assigned analyses automatically.** S02 says analyses are assigned using **both sample media and requested analyte codes**. For assignment, the inbound sample must match a record in `X_OCD_MONITORING` on **Analyte Code and Media**, and the analysis must have an **Analysis Variation with the corresponding method assigned**. Both conditions are documented as prerequisites; neither alone is sufficient according to S02. **Evidence:** S02 pp. 6–7, *Test Assignment*. **Related architecture:** [§1.3](#13-method-variation-and-test-assignment-dependencies); **configuration owner:** [§3](#3-analysis-configuration).
+
+**[OIS-ASSIGN-02] — `DOCUMENTED_REQUIREMENT` — Applies to the analysis-side method/variation mapping used at sample login.** S02 states that every method–variation pair must be populated in the analysis's Analysis Methods configuration, which is used during sample-login assignment. S02 also requires a corresponding master method record in `T_ANALYSIS_METHOD` before method/variation linking. These are cross-referenced here rather than restated as a full configuration procedure. **Evidence:** S02 pp. 10–11, *T_Analysis_Method* and *Methods*. **Owning detail:** [§3](#3-analysis-configuration); **naming ambiguity:** [Q03](#q03-methodvariation-relationships).
+
+**[OIS-ASSIGN-03] — `DOCUMENTED_DESCRIPTION` — Applies when field-sample variations are selected by media.** S02 documents media-specific analysis variations, including an example `OSHA_5000_AIR`, and says applicable Sample Type values must be configured on field-sample variations; the QC variation Sample Type is left empty. These are analysis-side settings and do **not** establish the full algorithm for choosing among multiple matching variations. **Evidence:** S02 pp. 10–11, *Variations*. **Owning detail:** [§3](#3-analysis-configuration).
+
+**Documented dependency summary (not a verified algorithm):** Requested analyte code + sample medium → matching `X_OCD_MONITORING` monitoring method → corresponding analysis method/variation association → eligible test assignment. This summarizes the prerequisites above; it does not specify precedence, handling of multiple matches, missing matches, or transaction/error behavior. **Evidence:** S02 pp. 6–7, 10–11.
+
+### 2.4 Project and sample creation: documented limits
+
+S02 p. 6 includes headings for *XML Parsing and Validation*, *Schema location*, *Staging Tables*, *Investigations*, *Project Template*, and *Sample Template* but supplies no actionable field configuration or end-to-end creation sequence under them. **Classification: `UNRESOLVED` / documentation gap.** No project-template name, sample-template name, XML field mapping, staging-table column, or validation rule should be invented. **Tracking:** [G01](#g01-xml-and-projectsample-setup).
+
+S02 p. 7 provides the OCD/test-assignment dependencies described in [§2.3](#23-automated-test-assignment-prerequisites), but those dependencies do not independently demonstrate how a project or sample is instantiated.
+
+### 2.5 Sample receiving and downstream boundaries
+
+S02 p. 8 lists *Sample Receiving Workflow*, *Seal Status*, and *Label Printing* without procedural details. **Classification: `UNRESOLVED`.** Do not infer required seal values, label formats, barcode rules, or receiving-state transitions. These belong to [§9](#9-operational-workflows) once evidence is supplied.
+
+The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Project Closure and OIS Reporting* without the necessary closure or response-generation procedure. Reportable result flags and analyte-code aliases are discussed elsewhere in the sources; their technical ownership is [§7](#7-calculations-limits-and-reporting). **Tracking:** [G03](#g03-release-and-ois-response).
+
+### 2.6 Evidence limitations and next verification inputs
+
+- **Unverified mapping:** Actual `X_OCD_MONITORING` records, `X_ANALYTE_CODE` records, and method/variation records are needed to check the documented joins and assignment outcomes. **No sample data or schema export has been supplied.**
+- **Unverified intake:** A sanitized OIS request XML, its schema, and relevant transfer/processing routines are needed to establish parsing, validation, project/sample creation, and failure handling. See [G01](#g01-xml-and-projectsample-setup).
+- **Unverified workflow:** Receiving, seal, label, investigation, and closure procedures require workflow configuration or observed test evidence. See [§9](#9-operational-workflows) and [G03](#g03-release-and-ois-response).
+- **No vendor claims:** Nothing in this section is classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`; the source describes the laboratory implementation, not a validated general LabWare product contract.
 
 ## 3. Analysis Configuration
 
@@ -286,6 +334,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 |---|---|---|
 | 2026-10-14 | Created Phase 3 canonical-document skeleton and topic ownership; registered existing S01/S02 by reference. | Structure based on `structure-review.md`, `source/manifest.md`, and reviewed crosswalk. No technical requirements consolidated or verified. |
 | 2026-10-14 | Populated §1 architecture and dependencies, with conditional scope, source references, and unresolved questions retained. | S01 pp. 1–3; S02 pp. 6–7, 9–11, 13–21. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §2 OIS integration, OCD, test assignment, and explicitly undocumented project/sample and receiving procedures. | S02 pp. 5–9, 10–11. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
