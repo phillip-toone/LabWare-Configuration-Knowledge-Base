@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–7 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–8 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -470,11 +470,73 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ## 8. Empower Integration
 
-**Owner:** Empower project setup, custom fields, interface mapping, expected project validation, Empower-specific data types.
+**Scope:** Laboratory-documented setup of Empower projects and their LabWare interface: instrument-to-project association, required Empower custom fields, sample-set and result mappings, project mapping reuse, and Empower-specific result types. This section is based primarily on S02 and describes the **OSHA implementation**, not a universal LabWare–Empower contract. Instrument master-record settings belong to [§5](#5-instrument-configuration); analysis component configuration to [§3](#3-analysis-configuration); calculation sequencing to [§7](#7-calculations-limits-and-reporting); batch prerequisites to [§4](#4-batch-configuration). **Evidence status:** Source-documented only; no Empower project export, interface mapping export, source code, vendor documentation, or executed test has been examined.
 
-**To develop:** Empower project custom fields and sample/result mapping, instrument Parameter 2, `ND` value handling, interface workflow. Do not generalize from an existing project mapping without verification.
+### 8.1 Instrument association and project validation
 
-**Sources to review:** S02 pp. 12, 19–21. **Open:** [G04](#g04-empower-exception-behavior).
+**[EMP-PROJECT-01] — `DOCUMENTED_REQUIREMENT` / `DOCUMENTED_DESCRIPTION` — Documented OSHA Empower batches.** S02 describes configuring each instrument for **one Empower project** in this use case. Set `INSTRUMENTS.PARAMETER_2_NAME` to `EMPOWER PROJECT` and `INSTRUMENTS.PARAMETER_2_VALUE` to the full project name. Its example `GC_Default\GC4 – LabWare1` is an `IMPLEMENTATION_EXAMPLE`, not a default. S02 states that batch processing compares the instrument selected on the Batch Result tab with the project loaded in the Empower Interface and prompts the user to switch projects on a mismatch. The comparison and prompt have not been independently verified. **Evidence:** S02 p. 19, *Empower Batches / Instrument Configuration*. **Instrument field owner:** [§5.4](#54-instrument-parameter-2-and-empower-project-association); **open:** [G04](#g04-empower-exception-behavior).
+
+### 8.2 Empower project custom fields
+
+**[EMP-FIELDS-01] — `DOCUMENTED_REQUIREMENT` — New Empower projects transferred to LabWare.** S02 instructs adding four custom fields to each new Empower project so LabWare can identify the relevant records. In Empower, open **Project Configuration Manager**, select **Configure the System**, open the target project's **Properties**, then the **Custom Fields** tab. The field names, scopes, types, and widths below reproduce S02; do not change capitalization or infer additional constraints. **Evidence:** S02 pp. 19–20, *Empower*.
+
+| Custom field | Empower field scope | Data type | Width |
+|---|---|---|---|
+| `LimsSampleId` | Sample | Text | 20 |
+| `LimsTestId` | Sample | Text | 20 |
+| `PostedToLIMS` | Result | Text | 5 |
+| `ReviewedInLIMS` | Result | Text | 20 |
+
+**[EMP-FIELDS-OPEN] — `UNRESOLVED` — Custom-field runtime semantics.** S02 provides the required field definitions but does not explain which routines write `PostedToLIMS` or `ReviewedInLIMS`, which values they contain, or how missing/duplicate identifiers are handled. The widths are source-prescribed settings, **not** evidence that every identifier or value has been validated to fit. **Evidence:** S02 pp. 19–20. **Open:** [G04](#g04-empower-exception-behavior).
+
+### 8.3 LabWare Empower Interface mapping setup
+
+**[EMP-MAP-SETUP-01] — `DOCUMENTED_REQUIREMENT` with `IMPLEMENTATION_EXAMPLE` — Onboarding a new Empower project.** S02 says new project mappings can be made by copying an existing configured project mapping using **Save As**, **after** the custom fields have been added to the target Empower project. Its documented operator sequence is: in LabWare, open **Options → Empower Interface** and log in; select the existing project used for **MeCl2 (OSHA 1025)**; open **Project → Result Mapping Manager** and **Save As** to the new project(s); open **Project → Sample Set Method Mapping Manager** and **Save As** to the same project(s); exit the Empower Interface and log out of LabWare. The MeCl2 project is a source-provided example of an existing mapping, **not** proof it is suitable for every new method. Review copied mappings for the target project's requirements. **Evidence:** S02 p. 20, *LabWare Empower Interface*.
+
+**[EMP-MAP-SETUP-OPEN] — `UNRESOLVED` — Mapping reuse.** S02 does not provide criteria for when copying the MeCl2 mapping is appropriate, how to validate field compatibility, or how to test/save/rollback a new mapping. Do not treat successful Save As as evidence of correct result transfer. **Open:** [G04](#g04-empower-exception-behavior).
+
+### 8.4 Sample Set Method mapping (source table)
+
+**[EMP-SAMPLE-MAP-01] — `DOCUMENTED_DESCRIPTION` — Mappings listed in S02.** The following is the complete **Sample Set Mapping** table supplied by S02. It is a description of documented mapping configuration, not a verified export from the interface. **Evidence:** S02 p. 20–21, *LabWare Empower Interface / Sample Set Mapping*.
+
+| LabWare SAMPLE or TEST field | Empower Sample Set Method field |
+|---|---|
+| `SAMPLE.SAMPLE_NUMBER` | `LimsSampleId` |
+| `TEST.TEST_NUMBER` | `LimsTestId` |
+| `SAMPLE.TEXT_ID` | `SampleName` |
+
+### 8.5 Result Set mapping (source table)
+
+**[EMP-RESULT-MAP-01] — `DOCUMENTED_DESCRIPTION` — Mappings listed in S02.** The following is the complete **Result Set Mapping** table supplied by S02. In particular, `RESULT.MILL_RES_NUM` is reproduced **as written in the source**; do not silently change it to a similarly named field without schema evidence. **Evidence:** S02 p. 21, *LabWare Empower Interface / Result Set Mapping*.
+
+| LabWare SAMPLE, TEST, or RESULT field | Empower Result or Peak field |
+|---|---|
+| `RESULT.ATTRIBUTE_3` | `Result.CalibrationId` |
+| `RESULT.ENTRY` | `Peak.Amount` |
+| `RESULT.ATTRIBUTE_4` | `Peak.CurveId` |
+| `RESULT.ATTRIBUTE_2` | `Result.Dilution` |
+| `RESULT.NAME` | `Peak.Name` |
+| `SAMPLE.SAMPLE_NUMBER` | `Result.LimsSampleId` |
+| `TEST.TEST_NUMBER` | `Result.LimsTestId` |
+| `RESULT.MILL_RES_NUM` | `Result.ResultNum` |
+| `TEST.PARAMETER_VALUE` | `Result.SampleName` |
+| `RESULT.ATTRIBUTE_5` | `Peak.Response` |
+
+**[EMP-MAP-SCOPE-01] — `UNRESOLVED` — Mapping scope and attribute meaning.** S02 does not establish whether these maps apply unchanged to all Empower methods, whether every analysis uses the same attribute assignments, or what other interface settings are required. Attribute meanings must be checked against the analysis configuration and actual project mappings before copying them. **See:** [§3.4](#34-attributes-and-instrument-result-component-flags), [G04](#g04-empower-exception-behavior).
+
+### 8.6 Empower peak values and calculation considerations
+
+**[EMP-ND-01] — `DOCUMENTED_REQUIREMENT` with source-described rationale — Empower peak components.** S02 instructs setting Empower peak component data type to **Text**, even when the reported value normally appears numeric, because a peak not detected by the Empower processing method may be returned as the literal string `ND` rather than `0`; S02 states a numeric type would cause a runtime type-mismatch error. This is specific to the described Empower peak results, not a rule for all numerical results. **Evidence:** S02 p. 12, *Empower*. **Analysis component owner:** [§3.4](#34-attributes-and-instrument-result-component-flags).
+
+**[EMP-CALC-01] — `DOCUMENTED_DESCRIPTION` — Empower calculation mode.** S02 says final-result calculations **may** have `AutoCalculate = T` for Empower or manual entry, unlike the documented file-import sequencing rule. This does not prove that automatic calculation is appropriate for every Empower method. **Evidence:** S02 p. 12, *Components*. **Owning rule:** [§7.3](#73-calculation-execution-and-data-source-distinctions).
+
+### 8.7 Evidence limitations and verification priorities
+
+- **Project identity and mismatch handling:** Obtain instrument Parameter 2 records and a reproducible batch/interface test to establish the actual project comparison and prompt behavior. [G04](#g04-empower-exception-behavior).
+- **Custom fields:** Inspect a configured Empower project to confirm names, field scopes, data types, widths, and actual use of posting/review markers.
+- **Mapping accuracy:** Export or inspect the existing Result Mapping and Sample Set Method Mapping records; verify all field names (especially `RESULT.MILL_RES_NUM`), direction of transfer, attribute semantics, and applicability to new projects.
+- **Result handling:** Test numeric peak values, `ND`, absent peaks, and downstream calculation behavior using representative records; no error-handling or retry semantics are established by the sources.
+- **No vendor/runtime verification:** Nothing in §8 is `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`. S02's existing-project example and listed mappings are source-documented configuration guidance, not independent proof of correct interface operation.
 
 ## 9. Operational Workflows
 
@@ -591,6 +653,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §5 instrument groups, parameters, conditional parser identifiers, and Empower project association; retained instrument-reference and dispatch questions. | S01 pp. 1–3; S02 pp. 9, 14, 19. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §6 file-import paths, parser contracts and context, validation phases, reordering, and failure limitations; retained unverified behavior. | S01 pp. 1–3; S02 pp. 6, 8, 16–18. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §7 limits, reporting-limit propagation, calculation mode, recovery, QC precision dependencies, and OIS reportability; retained gaps and unverified behavior. | S01 pp. 1–2; S02 pp. 5, 9–10, 12–13, 15. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §8 Empower project association, custom fields, sample-set/result mapping, onboarding steps, and peak-value handling; retained interface verification gaps. | S02 pp. 12, 19–21. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
