@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–6 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–7 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -424,11 +424,49 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ## 7. Calculations, Limits, and Reporting
 
-**Owner:** Analysis limits, reporting-limit transformations, result calculations and execution order, recovery, reportability and OIS outbound results.
+**Scope:** Laboratory-documented use of analysis limits and reporting limits, calculation execution settings, recovery results, and final-result selection for outbound OIS reporting. This section owns result-level calculation and reporting rules; component and variation setup belongs to [§3](#3-analysis-configuration), batch QC and precision components to [§4](#4-batch-configuration), parser execution to [§6](#6-data-import-and-parsing), and operational release/response generation to [§9](#9-operational-workflows). **Evidence status:** S01/S02 source instructions and descriptions only. No calculation source code, populated limits, result exports, XML responses, vendor manual, or executed verification tests have been examined.
 
-**To develop:** `ANALYSIS_LIMITS.MIN_LIMIT`, `RESULT.X_REPORTING_LIMIT`, lower-limit formatting, `AutoCalculate` by workflow, analyte-code alias and outbound XML. Do not infer runtime enforcement without evidence.
+### 7.1 Analysis limits and enforcement boundary
 
-**Sources to review:** S01 pp. 1–2; S02 pp. 10, 12–13. **Open:** [Q06](#q06-calculation-mode), [Q07](#q07-reportability-semantics), [G03](#g03-release-and-ois-response).
+**[CAL-LIMIT-01] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — Analyses using configured analysis limits.** Both sources state that **Analysis Limits are not checked inherently** in the described implementation. Limits may be configured in the Analysis Limits table, but must be explicitly applied during result calculations. S01 and S02 point to `CALC_ICP_FINAL` as an **implementation example** of accessing those limits; neither source provides its code or establishes the calculation engine's general enforcement behavior. **Evidence:** S01 p. 1, *Analyses*; S02 p. 10, *Analysis Limits*. **See:** [§3.6](#36-analysis-side-calculation-and-reporting-dependencies-references-only).
+
+### 7.2 Lower reporting limit and final-result propagation
+
+**[CAL-RL-01] — `DOCUMENTED_REQUIREMENT` — Documented raw-to-final result workflow.** S02 states that each raw instrument result has a corresponding **Lower Reporting Limit**, determined annually from measured **Reporting Limit Spiked Media (RLSM)** samples through a separate process. The limit is stored in `ANALYSIS_LIMITS.MIN_LIMIT`. S02 instructs using that value to calculate a reporting limit for final results and storing the resulting value in `RESULT.X_REPORTING_LIMIT`. The annual RLSM determination procedure, selection criteria for the relevant limit row, and underlying limit records are **not supplied**. **Evidence:** S02 p. 10, *Reporting Limits*. **Stock setup:** [§4.3](#43-batch-protocols-standards-and-qc-stock).
+
+**[CAL-RL-02] — `DOCUMENTED_REQUIREMENT` — Final results transformed from raw instrument values.** S02 says that, **generally**, transformations applied to the raw measured result to obtain the final result should also be applied to the Lower Reporting Limit in parallel. The source does not specify a universal formula, unit-conversion sequence, or list of permitted transformations. Do not infer that a raw limit can simply be copied unchanged to every final result. **Evidence:** S02 p. 10, *Reporting Limits*.
+
+**[CAL-RL-03] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — Final-result reporting-limit formatting.** S02 describes a format calculation, usually `ICP_LOWER_LIMIT`, that compares final-result `RESULT.ENTRY` with `RESULT.X_REPORTING_LIMIT` and, where the result is below the reportable threshold, produces a lower-bracket presentation described as **`<RL`**. S02 also calls for a format calculation *similar to* `ICP_LOWER_LIMIT` for most final calculated results. The source does not supply the code, exact equality/boundary rule, rounding, formatting expression, or whether `RESULT.ENTRY` itself is overwritten. Treat the routine name as an example, not a requirement to reuse the same calculation for every method. **Evidence:** S02 p. 10, *Reporting Limits*, and p. 13, *Reportable Results*. **Open:** [G03](#g03-release-and-ois-response).
+
+### 7.3 Calculation execution and data-source distinctions
+
+**[CAL-AUTO-01] — `DOCUMENTED_REQUIREMENT` — Final-result calculations for instrument-file batch imports.** S01 and S02 instruct **`AutoCalculate = F`** for final-result calculations when batch files are imported. Their stated reason is that blank samples and field unknowns may arrive or be tested out of order while calculations depend on one another. This is a laboratory sequencing rule for the documented file-import workflow, **not** evidence of a general LabWare engine limitation or an instruction to disable every calculation. **Evidence:** S01 p. 2, *Analyses*; S02 p. 12, *Components*. **See:** [§6](#6-data-import-and-parsing), [Q06](#q06-calculation-mode).
+
+**[CAL-AUTO-02] — `DOCUMENTED_DESCRIPTION` — Manual-entry or Empower workflows.** S02 says calculations **may** use **`AutoCalculate = T`** for manual entry or Empower. This is permission conditioned on workflow and dependencies, **not** a universal requirement to enable automatic calculation. The source does not provide a complete execution-order specification for either mode. **Evidence:** S02 p. 12, *Components*. **See:** [§8](#8-empower-integration), [Q06](#q06-calculation-mode).
+
+**[CAL-SEQUENCE-OPEN] — `UNRESOLVED` — Final calculation orchestration.** Neither source supplies the full execution sequence for blank correction, replicates, reporting-limit transformations, and final-result calculation after import. In particular, `AutoCalculate = F` does not itself document what routine triggers final calculations or how failed calculations are recovered. Verify with calculation code, batch processing routines, and reproducible tests before prescribing execution order. **Evidence:** S01 p. 2; S02 pp. 10, 12, 17–18. **See:** [Q06](#q06-calculation-mode), [§6.4](#64-validation-only-and-commit-processing).
+
+### 7.4 Recovery and batch QC calculation boundaries
+
+**[CAL-RECOVERY-01] — `DOCUMENTED_DESCRIPTION` — Standards, controls, QCSM, and RLSM.** S02 defines **recovery** as the measured analyte amount relative to the theoretical content and describes it as a **unitless fraction**. Its illustration is 99 mg measured from a nominal 100 mg, giving a recovery of **0.99**. This is a conceptual and numerical example, not a supplied LabWare calculation formula or acceptance criterion for all recovery components. **Evidence:** S02 p. 13, *Recovery*.
+
+**[CAL-QC-01] — `DOCUMENTED_REQUIREMENT` with `IMPLEMENTATION_EXAMPLE` — QCSM precision components when configured.** S02 directs one **QCSM Precision** batch result per reportable recovery (F/T), with `Auto-calc false`, a `targetElement` naming the applicable recovery component, and `GOSUB CALC_BATCH_QC_REC_PRECISION`. Its example target `Be F/T` must be replaced as appropriate for the analysis. The meaning of “F/T,” calculation formula, and QC acceptance limits are not documented. Batch-component setup is owned by [§4.4](#44-batch-result-components-and-reference-fields); this entry records only the calculation dependency. **Evidence:** S02 p. 15, *QCSM Precision*.
+
+### 7.5 Reportable components, analyte codes, and OIS output
+
+**[RPT-FLAG-01] — `DOCUMENTED_REQUIREMENT` — Field-sample results intended for OIS and reports.** S02 says that only components marked **`Reportable = T`** are included in the OIS response XML or reports emailed to CSHOs, and instructs marking **only final field-sample results** reportable. S01 also associates variation-level reportability with review/release and outbound OIS XML. Both sources direct setting reportability at the **component variation** level. S02 permits reportability at the original component level as well, whereas S01 specifies base-component **`Reportable = F`** for analyses with multiple variations. Preserve this distinction; flag precedence and actual output selection remain unverified. **Evidence:** S01 pp. 1–2, *Analyses*; S02 pp. 11–13, *Component Variations* and *Reportable Results*. **Component setup:** [§3.3](#33-base-components-versus-variation-components); **open:** [Q07](#q07-reportability-semantics).
+
+**[RPT-ALIAS-01] — `DOCUMENTED_REQUIREMENT` — Reportable components mapped to OIS analytes.** Both sources instruct that a reportable component's **Alias Name** match the corresponding **OIS Analyte Code**. They give the example **Beryllium (Final)** for `OSHA_1023` with alias **`0365`**. The code must be treated as an identifier, not a number; this data-handling recommendation does not establish additional LabWare validation behavior. **Evidence:** S01 p. 2, *Analyses*; S02 p. 13, *Reportable Results*. **Analyte-code context:** [§2.2](#22-occupational-chemical-database-reference-tables).
+
+**[RPT-OUTPUT-OPEN] — `UNRESOLVED` — Release and outbound response mechanics.** S02 describes the overall purpose of generating a response file for OIS and reporting to CSHOs, but the *Batch Review* and *Project Closure and OIS Reporting* headings do not provide the full review, release, XML construction, delivery, or failure-handling procedure. The component flags and aliases above do **not** establish those steps. **Evidence:** S02 p. 5, *Purpose*; p. 9, *Batch Review* and *Project Closure and OIS Reporting*; pp. 12–13, *Reportable Results*. **See:** [§9](#9-operational-workflows), [G03](#g03-release-and-ois-response).
+
+### 7.6 Evidence limitations and verification priorities
+
+- **Limits and formulas:** Obtain representative `ANALYSIS_LIMITS` records, `CALC_ICP_FINAL`, `ICP_LOWER_LIMIT`, and example raw/final results to verify limit selection, propagation, formatting, units, rounding, and comparison boundaries.
+- **Execution sequence:** Examine actual final-result calculations and batch-processing code, then test blank/unknown dependencies and repeated calculations for each relevant import mode. [Q06](#q06-calculation-mode).
+- **Recovery and QC:** Obtain recovery and QCSM precision calculations, target-component records, and applicable laboratory acceptance criteria before asserting pass/fail logic.
+- **Reportability:** Compare base/variation component flags with review screens, exported OIS XML, and emailed reports to establish effective precedence and output behavior. [Q07](#q07-reportability-semantics), [G03](#g03-release-and-ois-response).
+- **No vendor/runtime verification:** Nothing in §7 is classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`. Named calculations, method IDs, and analyte codes are source examples, not universal defaults.
 
 ## 8. Empower Integration
 
@@ -552,6 +590,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §4 batch templates, test membership, protocols, QC/stock references, batch components and entry-mode distinctions; retained unresolved terminology and field questions. | S01 pp. 1–2; S02 pp. 8, 13–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §5 instrument groups, parameters, conditional parser identifiers, and Empower project association; retained instrument-reference and dispatch questions. | S01 pp. 1–3; S02 pp. 9, 14, 19. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §6 file-import paths, parser contracts and context, validation phases, reordering, and failure limitations; retained unverified behavior. | S01 pp. 1–3; S02 pp. 6, 8, 16–18. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §7 limits, reporting-limit propagation, calculation mode, recovery, QC precision dependencies, and OIS reportability; retained gaps and unverified behavior. | S01 pp. 1–2; S02 pp. 5, 9–10, 12–13, 15. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
