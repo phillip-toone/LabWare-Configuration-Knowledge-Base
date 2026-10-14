@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–12 populated from registered sources and source-derived recommendations; §§13–14 remain question/source registers. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–12 populated from registered sources and source-derived recommendations; §§13–14 remain question/source registers. **Not yet a complete implementation specification.** Source-supported configuration knowledge has been selectively consolidated; original Word documents remain authoritative evidence snapshots. Coverage is not certified exhaustive, and no live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -49,7 +49,7 @@ When substantive guidance is added, identify its **stable topic/requirement ID**
 **See also:** [owning section / question ID]
 ```
 
-Use existing crosswalk IDs when suitable; do not manufacture source locations or verification records. Source citations should use the registered IDs and precise locations, e.g., `S02, p. 17, Data File Batches`; for extraction traceability, reference `crosswalk/requirements.csv` IDs. When evidence changes, update the canonical statement in its **one owning section**, adjust crosswalk status if needed, and record the material change in §14.
+Canonical topic IDs and crosswalk extraction IDs are distinct identifier namespaces. Preserve both; do not assume matching prefixes or numbers establish a relationship. Record explicit source-row mappings only after checking the underlying statement and location. Do not manufacture source locations or verification records. Source citations should use the registered IDs and precise locations, e.g., `S02, p. 17, Data File Batches`; for extraction traceability, reference `crosswalk/requirements.csv` IDs. When evidence changes, update the canonical statement in its **one owning section**, adjust crosswalk status if needed, and record the material change in §14.
 
 ### 0.5 Topic ownership and duplication rule
 
@@ -79,7 +79,7 @@ Sections 1–9 own reusable technical guidance; §10 is a linked implementation 
 
 **[ARCH-BATCH-01] — `DOCUMENTED_DESCRIPTION` — Applies to test batches.** S02 states that `TEST.BATCH` holds the batch name and that `BATCH_OBJECTS.OBJECT_ID = TEST.TEST_NUMBER`; samples are not directly attached to batches. This is the documented membership model, not a claim that every possible LabWare batch class uses the same relationship. **Evidence:** S02 p. 15, *Batch Tests*. **Details:** [§4](#4-batch-configuration).
 
-**[ARCH-LINK-01] — `DOCUMENTED_REQUIREMENT` — Applies when an analysis is batched.** S01 directs that the analysis Batch Link and batch template Analysis Link Key match the analysis name exactly, with a new Batch Link record for each analysis to be batched. S02 describes a Batch Link of type **Analysis Link Key** matching `ANALYSIS.NAME`, and separately states that the analysis Batch Link must match the batch template. Read these as linked laboratory configuration instructions; the exact underlying field names and lookup mechanics are not independently verified. **Evidence:** S01 pp. 1–2, *Analyses* and *Batch*; S02 pp. 9, 14–15, *Required Configuration* and *Batch Tests*. **Details:** [§3](#3-analysis-configuration), [§4](#4-batch-configuration).
+**[ARCH-LINK-01] — `DOCUMENTED_DESCRIPTION` — Batched analyses.** The documented architecture connects an analysis to a test-batch template through matching Batch Link / Analysis Link Key values. Exact field-level instructions and source distinctions are owned by [§4.1](#41-batch-template-identity-and-core-settings); the analysis-side setting is indexed in [§3.1](#31-analysis-record-and-conditional-settings). **Evidence:** S01 pp. 1–2; S02 pp. 9, 14–15. Lookup mechanics remain unverified.
 
 ### 1.3 Method, variation and test-assignment dependencies
 
@@ -185,7 +185,7 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 **[ANA-RECORD-01] — `DOCUMENTED_REQUIREMENT` — Batched analyses.** S01 instructs that the analysis **Batch Link** match the analysis name exactly and that a Batch Link Table record be created for each analysis to be batched. S02 also instructs that the analysis Batch Link match the batch template. The linked batch-side setup is owned by [§4](#4-batch-configuration); see the architecture summary [§1.2](#12-batch-membership-and-analysis-link-identity). **Evidence:** S01 p. 1, *Analyses*; S02 p. 9, *Required Configuration*.
 
-**[ANA-INST-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports or Empower.** The analysis **Instruments → Inst Group** must match the group of the instrument providing the data, including the corresponding instrument component on the batch template. S01 describes the batch result Alias Name as the matching instrument-group value. S02 contains additional `X_STOCK` wording that is not reconciled here. **Evidence:** S01 p. 1, *Analyses*; S02 p. 9, *Required Configuration*. **See:** [§5](#5-instrument-configuration), [Q01](#q01-instrument-reference-fields).
+**[ANA-INST-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports or Empower.** Set the analysis **Instruments → Inst Group** for the applicable instrument workflow. The matching convention, batch component aliases, and unresolved `X_STOCK` wording are owned by [§5.1](#51-instrument-group-and-analysisbatch-matching) and [Q01](#q01-instrument-reference-fields). **Evidence:** S01 p. 1; S02 p. 9, *Required Configuration*.
 
 **[ANA-DESTRUCT-01] — `DOCUMENTED_REQUIREMENT` with qualified scope — Destructive analyses.** S02 instructs setting **Other Fields → Destructive** to True for *most analyses that conduct destructive testing* and cautions that this may prevent additional analyses from being assigned at sample creation. This is not a universal setting and the exact assignment impact is not verified. **Evidence:** S02 pp. 9–10, *Required Configuration*. **See:** [§2](#2-ois-integration-project-and-sample-setup).
 
@@ -205,13 +205,13 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 **[ANA-COMP-02] — `DOCUMENTED_REQUIREMENT` — Variation-specific component configuration.** Assign the result components needed by the variation; S02 gives a **BULK** variation's sample-weight component as an example of a component not needed by **AIR** or **QC** variations. S02 says variation components may be **Optional = F** depending on the analysis, while **Displayed = T**. Do not confuse variation component optionality with the batch-result requiredness controls in [§4](#4-batch-configuration). **Evidence:** S02 p. 11, *Component Variations*. **See:** [Q02](#q02-component-requiredness).
 
-**[ANA-COMP-03] — `DOCUMENTED_REQUIREMENT` — Final results intended for reporting.** S01 directs **Reportable = T** on the component variation for results intended for review/release and OIS XML; S02 directs that **only final field-sample results** be reportable for outbound OIS/report delivery and that the variation-level flag be set. S02 says reportability *may also* be set at the original component level, whereas S01 specifies **Reportable = F** for base components in multi-variation analyses. Preserve these separate source instructions and do not resolve precedence without evidence. **Evidence:** S01 pp. 1–2, *Analyses*; S02 pp. 11–13, *Component Variations* and *Reportable Results*. **See:** [§7](#7-calculations-limits-and-reporting), [Q07](#q07-reportability-semantics).
+**[ANA-COMP-03] — `DOCUMENTED_REQUIREMENT` — Reportability flags at component level.** For reportable final field-sample results, S01/S02 instruct **Reportable = T** at the variation-component level. S01 prescribes **Reportable = F** on base components for multi-variation analyses; S02 says base-level reportability may also be set. Preserve both source scopes; flag precedence is unresolved. **Evidence:** S01 pp. 1–2; S02 pp. 11–13. **Outbound selection and aliases:** [§7.5](#75-reportable-components-analyte-codes-and-ois-output); **open:** [Q07](#q07-reportability-semantics).
 
 **[ANA-COMP-04] — `DOCUMENTED_REQUIREMENT` — Reportable components sent to OIS.** The reportable component **Alias Name** should match the OIS analyte code. Both sources give Beryllium (Final) for `OSHA_1023` with Alias Name `0365` as an **implementation example**, not a general-purpose alias. **Evidence:** S01 p. 2, *Analyses*; S02 p. 13, *Reportable Results*. **See:** [§7](#7-calculations-limits-and-reporting).
 
 ### 3.4 Attributes and instrument-result component flags
 
-**[ANA-ATTR-01] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — File-parsed results with attributes.** The documented analysis-specific parser supports up to **five** result attributes (`ATTRIBUTE_1`–`ATTRIBUTE_5`), configured/named at the analysis level and populated by the parser where used. S01 says these may contain relevant data associated with result entry; S02 ties them to the analysis-specific parsing routine. The `ICP_OES` example uses **Wavelength**, **Dilution Factor**, **%RSD**, **Timestamp**, and **Interferences**. These names are an `IMPLEMENTATION_EXAMPLE`, not required attributes for other analyses. **Evidence:** S01 p. 1; S02 pp. 11–12, *Data Parsing*. **See:** [§6](#6-data-import-and-parsing).
+**[ANA-ATTR-01] — `DOCUMENTED_REQUIREMENT` (attribute configuration) with `IMPLEMENTATION_EXAMPLE` (ICP_OES names) — File-parsed results with attributes.** The documented analysis-specific parser supports up to **five** result attributes (`ATTRIBUTE_1`–`ATTRIBUTE_5`), configured/named at the analysis level and populated by the parser where used. S01 says these may contain relevant data associated with result entry; S02 ties them to the analysis-specific parsing routine. The `ICP_OES` example uses **Wavelength**, **Dilution Factor**, **%RSD**, **Timestamp**, and **Interferences**. These names are an `IMPLEMENTATION_EXAMPLE`, not required attributes for other analyses. **Evidence:** S01 p. 1; S02 pp. 11–12, *Data Parsing*. **See:** [§6](#6-data-import-and-parsing).
 
 **[ANA-RAW-01] — `DOCUMENTED_REQUIREMENT` — Raw results populated by instrument file or Empower.** S02 instructs setting **Uses Instrument = T** on raw result components receiving instrument data, and **Has Attributes = T** where attributes are returned from the file or Empower. This is conditional on the data source and result design. **Evidence:** S02 p. 12, *Components*. **See:** [§6](#6-data-import-and-parsing), [§8](#8-empower-integration).
 
@@ -223,7 +223,7 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 ### 3.6 Analysis-side calculation and reporting dependencies (references only)
 
-**[ANA-CALC-REF] — `DOCUMENTED_REQUIREMENT` — File-import final results.** Both sources instruct setting final-result calculations **AutoCalculate = F** for batch file imports to control dependencies between blanks and field unknowns; S02 permits **AutoCalculate = T** for manual entry or Empower. Detailed sequencing and limits belong exclusively to [§7](#7-calculations-limits-and-reporting). **Evidence:** S01 p. 2; S02 p. 12, *Components*. **See:** [Q06](#q06-calculation-mode).
+**[ANA-CALC-REF] — `DOCUMENTED_DESCRIPTION` — Analysis-side calculation dependency.** Calculation settings differ by testing mode and must be evaluated before configuring final-result components. The authoritative source-documented `AutoCalculate` guidance and unresolved execution-order behavior are in [§7.3](#73-calculation-execution-and-data-source-distinctions) and [Q06](#q06-calculation-mode). **Evidence:** S01 p. 2; S02 p. 12.
 
 **[ANA-LIMIT-REF] — `DOCUMENTED_DESCRIPTION` — Analysis limits.** Both sources state that Analysis Limits are **not checked inherently** in the described configuration and must be applied during result calculations; S02 discusses reporting-limit propagation. Detailed rules, `CALC_ICP_FINAL`, and formatting belong to [§7](#7-calculations-limits-and-reporting). **Evidence:** S01 p. 1; S02 p. 10, *Analysis Limits* and *Reporting Limits*.
 
@@ -269,11 +269,11 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 **[BAT-COMP-01] — `DOCUMENTED_REQUIREMENT` — Batch result components referring to stock.** S01 directs filling **Other Fields → X_STOCK** with the appropriate stock item for stock-referencing results. S02 specifies `BATCH_COMPONENT.X_STOCK = STOCK.NAME` for **Stock Used** and says **Standards Used** is configured similarly. For standard components, S02 additionally states `BATCH_COMPONENT.ALIAS_NAME = QC_SAMPLES.NAME` to match the QC samples in the batch standard protocol. **Evidence:** S01 p. 2, *Batch Result Components*; S02 pp. 14–15, *Required Configuration*.
 
-**[BAT-COMP-02] — `DOCUMENTED_REQUIREMENT` — Instrument-identifying batch results.** S01 requires the instrument result **Alias Name** to match the instrument group. S02 specifies `BATCH_COMPONENT.ALIAS_NAME = INSTRUMENT.INST_GROUP` and describes **Instrument Used** components, including additional components when multiple instruments are involved. S02 elsewhere mentions the batch result `X_STOCK` field in relation to instruments; this is **unresolved**, not silently replaced by the alias rule. **Evidence:** S01 p. 2; S02 pp. 9, 14–15. **See:** [§5](#5-instrument-configuration), [Q01](#q01-instrument-reference-fields).
+**[BAT-COMP-02] — `DOCUMENTED_REQUIREMENT` — Instrument-identifying batch results.** Configure **Instrument Used** batch components (including additional components for multiple instruments when applicable) using the documented group-matching convention. The precise Alias Name / instrument-group relationship and conflicting `X_STOCK` reference are maintained in [§5.1](#51-instrument-group-and-analysisbatch-matching) and [Q01](#q01-instrument-reference-fields). **Evidence:** S01 p. 2; S02 pp. 9, 14–15.
 
 **[BAT-COMP-03] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports only.** S01 directs that the batch result identifying the instrument producing the parsed file have **Other Fields → Data File Source = True**, with **only one Data File Source per batch**. It also requires an **Instrument File** batch result with type **DB File Name**. S02 likewise identifies **Instrument File** among the batch results needed for processing. Do not apply these requirements automatically to manual-entry or Empower-only batches. **Evidence:** S01 p. 2, *Batch Result Components*; S02 p. 14, *Required Configuration*. **Parser/file handling owner:** [§6](#6-data-import-and-parsing).
 
-**[BAT-COMP-04] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — Batch component entry calculations.** S02 gives illustrative **Instrument Used** calculation logic (`SELECT BATCH_COMPONENT.ALIAS_NAME` into `instGroupName`; `GOSUB BC_INSTRUMENT_BROWSE`; `RETURN instrumentName`), **Stock Used** / **Standards Used** logic (`GOSUB CALC_ING_SCAN_DIALOG`; `RETURN`), and directs **Auto-calc false** for these batch component calculations. These are source-provided configurations, not independently validated code snippets or a complete executable routine. **Evidence:** S02 pp. 14–15, *Required Configuration*. **See:** [§5](#5-instrument-configuration) and [§7](#7-calculations-limits-and-reporting).
+**[BAT-COMP-04] — `DOCUMENTED_REQUIREMENT` (auto-calc setting) with `IMPLEMENTATION_EXAMPLE` (routine snippets) — Batch component entry calculations.** S02 gives illustrative **Instrument Used** calculation logic (`SELECT BATCH_COMPONENT.ALIAS_NAME` into `instGroupName`; `GOSUB BC_INSTRUMENT_BROWSE`; `RETURN instrumentName`), **Stock Used** / **Standards Used** logic (`GOSUB CALC_ING_SCAN_DIALOG`; `RETURN`), and directs **Auto-calc false** for these batch component calculations. These are source-provided configurations, not independently validated code snippets or a complete executable routine. **Evidence:** S02 pp. 14–15, *Required Configuration*. **See:** [§5](#5-instrument-configuration) and [§7](#7-calculations-limits-and-reporting).
 
 **[BAT-PRECISION-01] — `DOCUMENTED_REQUIREMENT` with `IMPLEMENTATION_EXAMPLE` — QCSM precision results where configured.** S02 calls for **one QCSM Precision record per reportable recovery (F/T)** on the batched analysis, with **Auto-calc false**, `targetElement` set to the applicable recovery component, and `GOSUB CALC_BATCH_QC_REC_PRECISION`. The example target is `Be F/T`; it must not be copied unchanged to unrelated analyses. The precise meaning of “F/T” and runtime calculation behavior have not been independently established. **Evidence:** S02 p. 15, *QCSM Precision*. **Calculation owner:** [§7](#7-calculations-limits-and-reporting).
 
@@ -419,7 +419,7 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 - **Source-described paths:** S02 identifies an instrument directory and a processing directory; S01 specifies a wildcard file-path constant. Their exact relationship, file movement, archive behavior, cleanup, and retry mechanism are **not established**. [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery).
 - **Duplicate and partial imports:** The **Instrument File** check is described, but no source establishes safe repeat import, rollback, or recovery after partial results have been committed. [G02](#g02-parser-failure-and-recovery).
 - **Dispatch and output semantics:** Confirm parser naming, LabStation interactions, context variables, and reordering against actual routines. [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract).
-- **Calculation ordering:** S01/S02 instruct **AutoCalculate = F** for file-import final-result calculations because blanks and unknowns may be interdependent; the detailed rule belongs to [§7](#7-calculations-limits-and-reporting), not this section.
+- **Calculation ordering:** File-import calculation-mode requirements and blank/unknown dependencies are owned by [§7.3](#73-calculation-execution-and-data-source-distinctions); the execution sequence remains unverified ([Q06](#q06-calculation-mode)).
 - **No vendor/runtime verification:** Nothing in §6 is classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`. `ICP_OES`, instrument names, paths, and code identifiers supplied as examples are not universal configuration defaults.
 
 ## 7. Calculations, Limits, and Reporting
@@ -454,7 +454,7 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ### 7.5 Reportable components, analyte codes, and OIS output
 
-**[RPT-FLAG-01] — `DOCUMENTED_REQUIREMENT` — Field-sample results intended for OIS and reports.** S02 says that only components marked **`Reportable = T`** are included in the OIS response XML or reports emailed to CSHOs, and instructs marking **only final field-sample results** reportable. S01 also associates variation-level reportability with review/release and outbound OIS XML. Both sources direct setting reportability at the **component variation** level. S02 permits reportability at the original component level as well, whereas S01 specifies base-component **`Reportable = F`** for analyses with multiple variations. Preserve this distinction; flag precedence and actual output selection remain unverified. **Evidence:** S01 pp. 1–2, *Analyses*; S02 pp. 11–13, *Component Variations* and *Reportable Results*. **Component setup:** [§3.3](#33-base-components-versus-variation-components); **open:** [Q07](#q07-reportability-semantics).
+**[RPT-FLAG-01] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — Outbound result selection.** S02 describes OIS response XML and CSHO reports as including reportable field-sample components, and directs that only **final results** be designated reportable. The component-level flag settings and S01/S02 differences are owned by [§3.3](#33-base-components-versus-variation-components); their effective precedence and output behavior remain unverified ([Q07](#q07-reportability-semantics)). **Evidence:** S01 pp. 1–2; S02 pp. 11–13.
 
 **[RPT-ALIAS-01] — `DOCUMENTED_REQUIREMENT` — Reportable components mapped to OIS analytes.** Both sources instruct that a reportable component's **Alias Name** match the corresponding **OIS Analyte Code**. They give the example **Beryllium (Final)** for `OSHA_1023` with alias **`0365`**. The code must be treated as an identifier, not a number; this data-handling recommendation does not establish additional LabWare validation behavior. **Evidence:** S01 p. 2, *Analyses*; S02 p. 13, *Reportable Results*. **Analyte-code context:** [§2.2](#22-occupational-chemical-database-reference-tables).
 
@@ -474,7 +474,7 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ### 8.1 Instrument association and project validation
 
-**[EMP-PROJECT-01] — `DOCUMENTED_REQUIREMENT` / `DOCUMENTED_DESCRIPTION` — Documented OSHA Empower batches.** S02 describes configuring each instrument for **one Empower project** in this use case. Set `INSTRUMENTS.PARAMETER_2_NAME` to `EMPOWER PROJECT` and `INSTRUMENTS.PARAMETER_2_VALUE` to the full project name. Its example `GC_Default\GC4 – LabWare1` is an `IMPLEMENTATION_EXAMPLE`, not a default. S02 states that batch processing compares the instrument selected on the Batch Result tab with the project loaded in the Empower Interface and prompts the user to switch projects on a mismatch. The comparison and prompt have not been independently verified. **Evidence:** S02 p. 19, *Empower Batches / Instrument Configuration*. **Instrument field owner:** [§5.4](#54-instrument-parameter-2-and-empower-project-association); **open:** [G04](#g04-empower-exception-behavior).
+**[EMP-PROJECT-01] — `DOCUMENTED_REQUIREMENT` (Parameter 2 fields) with `DOCUMENTED_DESCRIPTION` (project-check behavior) — Documented OSHA Empower batches.** S02 describes configuring each instrument for **one Empower project** in this use case. Set `INSTRUMENTS.PARAMETER_2_NAME` to `EMPOWER PROJECT` and `INSTRUMENTS.PARAMETER_2_VALUE` to the full project name. Its example `GC_Default\GC4 – LabWare1` is an `IMPLEMENTATION_EXAMPLE`, not a default. S02 states that batch processing compares the instrument selected on the Batch Result tab with the project loaded in the Empower Interface and prompts the user to switch projects on a mismatch. The comparison and prompt have not been independently verified. **Evidence:** S02 p. 19, *Empower Batches / Instrument Configuration*. **Instrument field owner:** [§5.4](#54-instrument-parameter-2-and-empower-project-association); **open:** [G04](#g04-empower-exception-behavior).
 
 ### 8.2 Empower project custom fields
 
@@ -528,7 +528,7 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 **[EMP-ND-01] — `DOCUMENTED_REQUIREMENT` with source-described rationale — Empower peak components.** S02 instructs setting Empower peak component data type to **Text**, even when the reported value normally appears numeric, because a peak not detected by the Empower processing method may be returned as the literal string `ND` rather than `0`; S02 states a numeric type would cause a runtime type-mismatch error. This is specific to the described Empower peak results, not a rule for all numerical results. **Evidence:** S02 p. 12, *Empower*. **Analysis component owner:** [§3.4](#34-attributes-and-instrument-result-component-flags).
 
-**[EMP-CALC-01] — `DOCUMENTED_DESCRIPTION` — Empower calculation mode.** S02 says final-result calculations **may** have `AutoCalculate = T` for Empower or manual entry, unlike the documented file-import sequencing rule. This does not prove that automatic calculation is appropriate for every Empower method. **Evidence:** S02 p. 12, *Components*. **Owning rule:** [§7.3](#73-calculation-execution-and-data-source-distinctions).
+**[EMP-CALC-01] — `DOCUMENTED_DESCRIPTION` — Empower calculation mode.** Empower may use a different calculation mode than file-import workflows; consult the conditional rule in [§7.3](#73-calculation-execution-and-data-source-distinctions) rather than assuming a universal setting. **Evidence:** S02 p. 12, *Components*.
 
 ### 8.7 Evidence limitations and verification priorities
 
@@ -619,7 +619,7 @@ The order below is a **recommended dependency-aware work order**, not a verified
 | Mode | Additional documented configuration to consult | Boundaries and open questions |
 |---|---|---|
 | **Manual entry** | Batch result components and analyst/reviewer checks in [§4.5](#45-pre-analysis-results-and-entry-mode-differences); calculation-mode guidance in [§7.3](#73-calculation-execution-and-data-source-distinctions). | S02 says manual Batch Results are not validated at batch level; do not infer that file-parser setup is needed or that no other validation exists. [Q09](#q09-manual-batch-checks). |
-| **Instrument-file import** | Instrument-group/Parameter 1 conventions [§5](#5-instrument-configuration); single Data File Source and Instrument File result [§4.4](#44-batch-result-components-and-reference-fields); path constant, parser names, ten-column array, validation, and optional reordering [§6](#6-data-import-and-parsing); file-import `AutoCalculate = F` rule [§7.3](#73-calculation-execution-and-data-source-distinctions). | Do not assume parser dispatch, all returned-variable obligations, retry/rollback safety, or alternate path granularity are verified. [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery). |
+| **Instrument-file import** | Instrument-group/Parameter 1 conventions [§5](#5-instrument-configuration); Data File Source and Instrument File result [§4.4](#44-batch-result-components-and-reference-fields); parser contract and validation [§6](#6-data-import-and-parsing); calculation-mode guidance [§7.3](#73-calculation-execution-and-data-source-distinctions). | Do not assume parser dispatch, all returned-variable obligations, retry/rollback safety, or alternate path granularity are verified. [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery). |
 | **Empower** | Instrument Parameter 2/project association [§5.4](#54-instrument-parameter-2-and-empower-project-association); four custom fields, sample-set/result mappings, and `ND` handling [§8](#8-empower-integration); conditional calculation settings [§7.3](#73-calculation-execution-and-data-source-distinctions). | Do not assume the instrument-file parser's constant, Data File Source, or Instrument File result is required for an Empower-only workflow. Validate copied mappings and project matching; error/retry behavior remains undocumented. [G04](#g04-empower-exception-behavior). |
 
 **[PROC-MODE-01] — `RECOMMENDATION` — Mixed or atypical workflows.** If a method combines modes or uses an undocumented integration, assess each dependency separately and record the evidence; the sources do not provide a universal combined-mode procedure. **Basis:** S01 p. 1; S02 pp. 12, 16–21.
@@ -718,7 +718,7 @@ The following entries are **`DOCUMENTED_DESCRIPTION`**, not verified defects or 
 | `TR-SRC-06` — Empower project mismatch | S02 says batch processing compares the selected instrument's expected Empower project with the project loaded in the interface and prompts a switch if they differ. | Check instrument Parameter 2 and the active Empower project. [§8.1](#81-instrument-association-and-project-validation). | S02 p. 19. Comparison and exception behavior unverified; [G04](#g04-empower-exception-behavior). |
 | `TR-SRC-07` — Empower `ND` type mismatch | S02 says Empower can return `ND` for an undetected peak, producing a runtime type mismatch if a numeric component type is used; it directs **Text** for Empower peak components. | Inspect peak component data type and representative Empower output. [§8.6](#86-empower-peak-values-and-calculation-considerations). | S02 p. 12, *Empower*. Exact error and downstream numeric handling not independently tested. |
 | `TR-SRC-08` — Limit not applied | Both sources state Analysis Limits are not checked inherently in the described implementation and require explicit use in result calculations. | Inspect limit records and the relevant calculation; compare raw/final result and reporting limit. [§7.1](#71-analysis-limits-and-enforcement-boundary), [§7.2](#72-lower-reporting-limit-and-final-result-propagation). | S01 p. 1; S02 p. 10. Not proof of vendor-wide behavior or a specific observed failure. |
-| `TR-SRC-09` — Out-of-order dependent calculations | S01/S02 prescribe `AutoCalculate = F` for final calculations in file-import batches because blank and unknown results can be interdependent and out of order. | Inspect calculation flags and actual execution path before changing them. [§7.3](#73-calculation-execution-and-data-source-distinctions). | S01 p. 2; S02 p. 12. No failed run or complete sequencing code supplied; [Q06](#q06-calculation-mode). |
+| `TR-SRC-09` — Out-of-order dependent calculations | The sources describe calculation-order dependencies in file-import batches; see the authoritative mode-specific rule in [§7.3](#73-calculation-execution-and-data-source-distinctions). | Inspect calculation flags and actual execution path before changing them. [§7.3](#73-calculation-execution-and-data-source-distinctions). | S01 p. 2; S02 p. 12. No failed run or complete sequencing code supplied; [Q06](#q06-calculation-mode). |
 | `TR-SRC-10` — Manual batch fields omitted | S02 says manual batch entry has no batch-level validation of the Batch Results table and relies on analyst/reviewer checks. | Inspect entered batch results and the applicable manual review workflow. [§4.5](#45-pre-analysis-results-and-entry-mode-differences), [§9.4](#94-batch-testing-mode-specific-operator-boundaries). | S02 p. 16. Does not exclude validation elsewhere; [Q09](#q09-manual-batch-checks). |
 
 **Not a troubleshooting conclusion:** A condition in this table does not establish that it occurred in the laboratory, that the stated mechanism is the only possible cause, or that the suggested inspection resolves it. Do not promote an entry to `VERIFIED` without a reproducible record.
@@ -740,59 +740,83 @@ When evidence is supplied, add a compact entry here with a stable identifier suc
 
 ## 13. Open Questions and Undocumented Areas
 
-The entries below are **investigation prompts, not confirmed defects**. Full initial discussion: [structure-review.md](structure-review.md). Record resolutions with evidence and update the owning section; retain the question history.
+The original Q01–Q09 and G01–G04 identifiers are preserved as **unresolved investigation prompts, not confirmed defects**. Priorities below are *conditional implementation dependencies*, not deadlines or claims of risk severity. Do not close an item solely because a written source describes the expected behavior. Preserve the history and cite evidence when resolving it. See [structure-review.md](structure-review.md) for the initial assessment.
 
-### Q01 — Instrument reference fields
+### 13.1 Investigation index
 
-S01 and S02 describe batch component alias matching instrument group; S02 also mentions `X_STOCK` in an instrument-related context. Determine the actual role of each field. **Unresolved.**
+| ID | Topic | Canonical owner | Investigation priority | Evidence to obtain |
+|---|---|---|---|---|
+| [Q01](#q01-instrument-reference-fields) | Instrument reference fields | §5.1; §4.4 | High — instrument/file-import setup | Batch component and instrument records, relevant lookup/selection routine |
+| [Q02](#q02-component-requiredness) | Component requiredness | §3.3; §4.5 | High — batch and component setup | Base/variation and batch component records; controlled missing-entry tests |
+| [Q03](#q03-methodvariation-relationships) | Method/variation relationships | §3.2; §4.2 | High — automated assignment | Actual schema/table definitions and method/variation records; assignment tests |
+| [Q04](#q04-parser-dispatch) | Parser dispatch | §6.2; §5.3 | High — file-import setup | `MNU_BM_SLTC_DATA_PARSE`, representative parsers, LabStation configuration |
+| [Q05](#q05-parser-contract) | Parser contract | §6.3 | High — file-import setup | Menu routine and parser code; validation/reorder test cases |
+| [Q06](#q06-calculation-mode) | Calculation mode | §7.3 | High — calculation-dependent analyses | Calculation records/code; ordered blank/unknown runs in each testing mode |
+| [Q07](#q07-reportability-semantics) | Reportability semantics | §3.3; §7.5 | High — OIS reporting | Base and variation flags; review screens and sanitized OIS/report outputs |
+| [Q08](#q08-path-constant-granularity) | Path constant granularity | §6.1 | Conditional — alternate import layouts | Constant definitions and directory-selection code |
+| [Q09](#q09-manual-batch-checks) | Manual batch checks | §4.5; §9.4 | Conditional — manual-entry analyses | Manual workflow routines and tests with missing required results |
+| [G01](#g01-xml-and-projectsample-setup) | XML and project/sample setup | §2.1–2.4; §9.1 | High — OIS intake | Sanitized XML/XSD, staging tables, intake routines, project/sample templates |
+| [G02](#g02-parser-failure-and-recovery) | Parser failure and recovery | §6.4–6.6; §12.1 | High — file-import recovery | Parser/menu code, file state evidence, controlled failure/retry tests |
+| [G03](#g03-release-and-ois-response) | Release and OIS response | §7.5; §9.5 | High — release/OIS output | Workflow records, release routines, sanitized response XML and delivery logs |
+| [G04](#g04-empower-exception-behavior) | Empower exception behavior | §8.1–8.7 | Conditional — Empower analyses | Empower project/mapping exports, posting logs, mismatch/ND/error tests |
 
-### Q02 — Component requiredness
+### 13.2 Open items and resolution questions
 
-Clarify base/variation component `Optional`, batch `Optional`, and batch `Required` semantics across screens. **Unresolved.**
+#### Q01 — Instrument reference fields
 
-### Q03 — Method/variation relationships
+**Status:** `UNRESOLVED`. **Question:** Distinguish Alias Name, instrument group, and `X_STOCK`; preserve both source statements. **Owner:** §5.1; §4.4. **Evidence needed:** Batch component and instrument records, relevant lookup/selection routine. **Priority:** High — instrument/file-import setup.
 
-Reconcile naming patterns with media-specific variations and related-method exceptions without assuming all suffixes or method pairings are universal. **Unresolved.**
+#### Q02 — Component requiredness
 
-### Q04 — Parser dispatch
+**Status:** `UNRESOLVED`. **Question:** Determine `Optional` versus `Required` behavior by object and workflow. **Owner:** §3.3; §4.5. **Evidence needed:** Base/variation and batch component records; controlled missing-entry tests. **Priority:** High — batch and component setup.
 
-Verify LabStation versus instrument-specific subroutine dispatch and Parameter 1 dependencies from code. **Unresolved.**
+#### Q03 — Method/variation relationships
 
-### Q05 — Parser contract
+**Status:** `UNRESOLVED`. **Question:** Check child-table naming, related-method linkage, and selection rules. **Owner:** §3.2; §4.2. **Evidence needed:** Actual schema/table definitions and method/variation records; assignment tests. **Priority:** High — automated assignment.
 
-Determine which context variables and return values are mandatory, optional, or conditional, including `stopParse`, `validationStr`, `wrongBatch`, and reorder arrays. **Unresolved.**
+#### Q04 — Parser dispatch
 
-### Q06 — Calculation mode
+**Status:** `UNRESOLVED`. **Question:** Determine analysis versus instrument-specific dispatch and Parameter 1 handling. **Owner:** §6.2; §5.3. **Evidence needed:** `MNU_BM_SLTC_DATA_PARSE`, representative parsers, LabStation configuration. **Priority:** High — file-import setup.
 
-Verify `AutoCalculate` behavior and sequencing separately for file-import, manual, and Empower workflows. **Unresolved.**
+#### Q05 — Parser contract
 
-### Q07 — Reportability semantics
+**Status:** `UNRESOLVED`. **Question:** Classify each context/return variable as mandatory, optional, or conditional. **Owner:** §6.3. **Evidence needed:** Menu routine and parser code; validation/reorder test cases. **Priority:** High — file-import setup.
 
-Determine base versus variation reportability effects on review/release and OIS XML. **Unresolved.**
+#### Q06 — Calculation mode
 
-### Q08 — Path constant granularity
+**Status:** `UNRESOLVED`. **Question:** Establish triggering, dependency order, and `AutoCalculate` behavior. **Owner:** §7.3. **Evidence needed:** Calculation records/code; ordered blank/unknown runs in each testing mode. **Priority:** High — calculation-dependent analyses.
 
-S01 describes an analysis-level path constant and suggests other granularity may be possible; verify before documenting any alternative as supported. **Unresolved.**
+#### Q07 — Reportability semantics
 
-### Q09 — Manual batch checks
+**Status:** `UNRESOLVED`. **Question:** Determine flag precedence and output selection. **Owner:** §3.3; §7.5. **Evidence needed:** Base and variation flags; review screens and sanitized OIS/report outputs. **Priority:** High — OIS reporting.
 
-Determine what validations exist in manual workflows; do not assume file-import preconditions apply. **Unresolved.**
+#### Q08 — Path constant granularity
 
-### G01 — XML and project/sample setup
+**Status:** `UNRESOLVED`. **Question:** Check whether non-analysis-level path selection is implemented. **Owner:** §6.1. **Evidence needed:** Constant definitions and directory-selection code. **Priority:** Conditional — alternate import layouts.
 
-S02 has headings for XML schema, staging, investigations, and templates without sufficient procedures. **Undocumented.**
+#### Q09 — Manual batch checks
 
-### G02 — Parser failure and recovery
+**Status:** `UNRESOLVED`. **Question:** Identify checks actually performed and responsible stage. **Owner:** §4.5; §9.4. **Evidence needed:** Manual workflow routines and tests with missing required results. **Priority:** Conditional — manual-entry analyses.
 
-Partial failure, rollback, reimport, and retry behavior are not fully established. **Undocumented.**
+#### G01 — XML and project/sample setup
 
-### G03 — Release and OIS response
+**Status:** `UNRESOLVED`. **Question:** Document validation, creation, failure, and investigation handling. **Owner:** §2.1–2.4; §9.1. **Evidence needed:** Sanitized XML/XSD, staging tables, intake routines, project/sample templates. **Priority:** High — OIS intake.
 
-Review, release, closure, and outbound response generation need operational and configuration evidence. **Undocumented.**
+#### G02 — Parser failure and recovery
 
-### G04 — Empower exception behavior
+**Status:** `UNRESOLVED`. **Question:** Establish partial writes, rollback, reimport, and retry behavior. **Owner:** §6.4–6.6; §12.1. **Evidence needed:** Parser/menu code, file state evidence, controlled failure/retry tests. **Priority:** High — file-import recovery.
 
-Mapping and setup are described, but runtime errors and recovery need evidence. **Undocumented.**
+#### G03 — Release and OIS response
+
+**Status:** `UNRESOLVED`. **Question:** Document review/closure statuses, XML generation, delivery, and exceptions. **Owner:** §7.5; §9.5. **Evidence needed:** Workflow records, release routines, sanitized response XML and delivery logs. **Priority:** High — release/OIS output.
+
+#### G04 — Empower exception behavior
+
+**Status:** `UNRESOLVED`. **Question:** Establish posting/review markers, mapping errors, and recovery. **Owner:** §8.1–8.7. **Evidence needed:** Empower project/mapping exports, posting logs, mismatch/ND/error tests. **Priority:** Conditional — Empower analyses.
+
+### 13.3 Resolution and deferral rules
+
+When evidence arrives, record the source identifier, environment/version where applicable, tested conditions, observed result, and remaining limitations. Update the substantive rule only in its canonical owner; retain this question ID with a resolution note and link to evidence. A question can remain open or be deferred if its workflow is not currently being implemented. Do not manufacture answers or assign due dates from the source documents.
 
 ## 14. Source Register and Change History
 
@@ -819,11 +843,26 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §7 limits, reporting-limit propagation, calculation mode, recovery, QC precision dependencies, and OIS reportability; retained gaps and unverified behavior. | S01 pp. 1–2; S02 pp. 5, 9–10, 12–13, 15. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §8 Empower project association, custom fields, sample-set/result mapping, onboarding steps, and peak-value handling; retained interface verification gaps. | S02 pp. 12, 19–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §9 operational stage boundaries from OIS intake through receiving, batch testing, review and closure; preserved undocumented procedures and mode-specific limits. | S01 pp. 1–2; S02 pp. 5–9, 11–19. Source-documented, not independently verified. |
-
 | 2026-10-14 | Populated §10 with a source-derived implementation checklist, mode-specific branches, and proposed verification checkpoints; no new technical requirements or verified outcomes asserted. | S01 pp. 1–3; S02 pp. 5–21; cross-references to §§1–9. Recommended sequence, not validated SOP. |
 | 2026-10-14 | Populated §11 with source-described ICP_OES, GC, Empower, and named-variation examples; identified empty analysis headings and retained verification boundaries. | S01 pp. 1–3; S02 pp. 10–13, 15–16, 19–21. Examples only, not inspected or verified configurations. |
 | 2026-10-14 | Populated §12 with source-described failure conditions, an explicitly empty verified-behavior register, and an evidence-based investigation template. | S01 pp. 1–2; S02 pp. 8, 12, 14–19. No independently reproduced incidents or resolutions. |
+| 2026-10-14 | Applied whole-document editorial QC: clarified canonical ownership, refined evidence-class wording, upgraded §13 investigation metadata, corrected status/history formatting, and added a partial ID traceability audit. | Review: `review/whole-document-quality-review.md`; existing S01/S02 and crosswalk rows. No runtime verification or exhaustive source audit. |
 
-### 14.3 Maintenance procedure
+### 14.3 Canonical-to-crosswalk ID traceability
 
-For each material addition or correction: identify the source/evidence → classify the claim and applicability → update its one owning section → add links to examples/questions as appropriate → update source manifest or crosswalk when needed → record the change here → commit to Git. No separate approval process is required for this single-maintainer project.
+The canonical topic IDs in this file are **not identical to** the extraction-row IDs in [`crosswalk/requirements.csv`](crosswalk/requirements.csv). The following small mapping was checked against the available reviewed CSV; it is a **partial audit, not a complete 272-row reconciliation**. Source locations in the CSV remain subject to the original DOCX verification process.
+
+| Canonical entry | Crosswalk row(s) checked | Relationship |
+|---|---|---|
+| `CAL-LIMIT-01` | `CAL-001` | S01 instruction on applying Analysis Limits in calculations. |
+| `CAL-AUTO-01` | `CAL-004`, `ANA-044` | S01/S02 file-import final-result calculation setting. |
+| `ANA-COMP-01` | `ANA-005`, `ANA-005-A2` | S01 base-component flags; S02 evidence also cited in canonical text. |
+| `IMP-ARRAY-01` | `IMP-006` | S01 parser `resultDataArr` interface; S02 evidence also cited in canonical text. |
+| `RPT-ALIAS-01` | `CAL-003`, `CAL-006` | S01/S02 reportable analyte-code Alias Name instruction. |
+| `EMP-PROJECT-01` | `EMP-003`, `EMP-004`, `EMP-003-A1` | S02 Empower instrument/project association and field settings. |
+
+**Pending audit:** The remaining canonical entries and crosswalk rows have not been mapped or checked individually. Do not infer a mapping from shared prefixes. Preserve canonical IDs and crosswalk IDs; record verified relationships incrementally without renumbering either namespace.
+
+### 14.4 Maintenance procedure
+
+For each material addition or correction: identify the source/evidence → classify the claim and applicability → update its one owning section → add links to examples/questions as appropriate → update source manifest or crosswalk when needed → record the material change here → commit to Git. Use Git for detailed editorial history. No separate approval process is required for this single-maintainer project.
