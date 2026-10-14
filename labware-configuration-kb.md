@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–8 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–9 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -540,11 +540,54 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ## 9. Operational Workflows
 
-**Owner:** Sample receiving, batch creation, batch testing, review/release, project closure, end-to-end operational sequence.
+**Scope:** Source-described sequence and operator-facing boundaries for OIS sample intake, receiving, batch creation, batch testing, review, and project closure. This section is an **operational orientation**, not a validated standard operating procedure. The detailed technical requirements are maintained in their owning sections: OIS and test assignment [§2](#2-ois-integration-project-and-sample-setup), analysis configuration [§3](#3-analysis-configuration), batch setup [§4](#4-batch-configuration), instrument setup [§5](#5-instrument-configuration), file parsing [§6](#6-data-import-and-parsing), calculations/reporting [§7](#7-calculations-limits-and-reporting), and Empower [§8](#8-empower-integration). **Evidence status:** S01/S02 source descriptions only; no configured workflow, user-interface execution trace, or independently verified test has been supplied.
 
-**To develop:** Documented entry points and prerequisites; mark receiving, review, release, and closure procedures as incomplete where only headings exist. Detailed object configuration stays in §§2–8.
+### 9.1 End-to-end process boundary and intake
 
-**Sources to review:** S02 pp. 6–9, 16–18. **Open:** [G03](#g03-release-and-ois-response).
+**[WF-SCOPE-01] — `DOCUMENTED_DESCRIPTION` — OTC testing of OIS field samples.** S02 describes an intended process beginning with an OIS testing-request file, followed by LabWare project/sample creation, assignment and testing of analyses, result reporting, and an outbound response to OIS. S02 does **not** provide a verified complete step-by-step process. **Evidence:** S02 p. 5, *Purpose*. **Technical owners:** [§2](#2-ois-integration-project-and-sample-setup), [§7](#7-calculations-limits-and-reporting).
+
+**[WF-INTAKE-01] — `DOCUMENTED_DESCRIPTION` — File transfer boundary.** S02 describes SFTP transfers using Windows shell scripts run by a LabWare background instance for incoming OIS requests and instrument files. It states that the scripts have `.bat` and `.txt` parts. This describes transport, **not** the XML validation, project-creation, or sample-login execution sequence. **Evidence:** S02 p. 6, *File Transfer Process* and *Shell Script Maintenance*. **Open:** [G01](#g01-xml-and-projectsample-setup).
+
+**[WF-LOGIN-OPEN] — `UNRESOLVED` — Project and sample creation.** S02 names *XML Parsing and Validation*, *Staging Tables*, *Investigations*, *Project Template*, and *Sample Template* but supplies no actionable sequence for these stages. Its documented analyte-code/media method-assignment prerequisites are maintained in [§2.3](#23-automated-test-assignment-prerequisites); they are **not** a complete login workflow. **Evidence:** S02 pp. 6–7, *Project and Sample Creation / Test Assignment*. **Open:** [G01](#g01-xml-and-projectsample-setup).
+
+### 9.2 Sample receiving
+
+**[WF-RECEIVE-OPEN] — `UNRESOLVED` — Receiving operations.** S02 lists *Sample Receiving Workflow*, *Seal Status*, and *Label Printing* without documenting operator actions, required fields, label layouts, acceptance criteria, or status transitions. Do not infer an executable receiving SOP from these headings. **Evidence:** S02 p. 8, *Sample Receiving*. **Needed evidence:** receiving workflow configuration, sanitized example records, and an observed test.
+
+### 9.3 Batch creation, preparation, and verification
+
+**[WF-BATCH-01] — `DOCUMENTED_DESCRIPTION` — Preparing a batch for testing.** S02 identifies *Batch Creation*, *Standard Inventory*, *Stock Assignment*, and *Batch Verification* as operational stages. It describes batch protocols and QC/standard configuration elsewhere, but does **not** give a complete operator-facing batch creation or verification procedure under these headings. The underlying template, QC, stock, and batch-component requirements belong to [§4](#4-batch-configuration). **Evidence:** S02 p. 8, *Batch Creation*; pp. 13–16, *Batch Configuration*.
+
+**[WF-ALIQUOT-01] — `DOCUMENTED_DESCRIPTION` — Applicable media requiring aliquots.** S02 says that, when certain samples are added to a batch through the Batch Creation workflow, `VWF_SLTC_TESTING_BATCH_CREATE` checks `X_OCD_MONITORING.NUM_ALIQUOT` for method/media, assigns additional testing, and aliquots to child samples. This is a source-described special case, not proof that all samples are aliquoted or that the workflow has been tested. **Evidence:** S02 p. 11, *Aliquoting*. **Owning configuration:** [§3.5](#35-aliquoting-and-dynamically-assigned-testing).
+
+### 9.4 Batch testing: mode-specific operator boundaries
+
+**[WF-TEST-01] — `DOCUMENTED_DESCRIPTION` — File import or Empower testing.** S02 says that after batch creation and entry of pre-analysis results (instruments, stocks, and standards), results can be entered; **all non-optional batch results must be entered before file parsing or Empower testing proceeds**. The documents also use `Optional = F` and `Required = T` in related contexts; do not assume these are the same field. **Evidence:** S02 p. 8, *Batch Testing*; S01 p. 2, *Batch Result Components*; S02 pp. 14–15, *Required Configuration*. **Owning rule:** [§4.5](#45-pre-analysis-results-and-entry-mode-differences); **open:** [Q02](#q02-component-requiredness).
+
+**[WF-FILE-01] — `DOCUMENTED_DESCRIPTION` — Instrument-file batch processing.** S02 identifies **Batch → Batch Process Results** (`MNU_BM_SLTC_DATA_PARSE`) as the operator entry point. It describes selection of a file from the assigned instrument's directory, batch/file validation, and a confirmation prompt before import. S02 describes a validation-only pass followed by a commit pass, but does **not** establish complete rollback or repeat-import safety. **Evidence:** S02 p. 8, *Data Parsing*; pp. 16–18, *Data File Batches / Validation*. **Owning procedure and limits:** [§6](#6-data-import-and-parsing); **open:** [G02](#g02-parser-failure-and-recovery).
+
+**[WF-MANUAL-01] — `DOCUMENTED_DESCRIPTION` — Manually entered batch results.** S02 states that, for manual batch entry, the Batch Results table is **not validated at batch level** and the analyst and reviewer must ensure that necessary fields are entered. This is a source description of the laboratory's manual workflow; it does not establish the absence of every possible validation elsewhere. **Evidence:** S02 p. 16, *Manual Data Entry*. **Owning detail:** [§4.5](#45-pre-analysis-results-and-entry-mode-differences); **open:** [Q09](#q09-manual-batch-checks).
+
+**[WF-EMPOWER-01] — `DOCUMENTED_DESCRIPTION` — Empower batch project check.** S02 says the selected batch instrument is compared with the Empower project currently loaded, and the user is prompted to change projects if they differ. It does not document the full operator test sequence, posting, exception resolution, or retry behavior. **Evidence:** S02 p. 19, *Empower Batches / Instrument Configuration*. **Owning detail:** [§8](#8-empower-integration); **open:** [G04](#g04-empower-exception-behavior).
+
+### 9.5 Review, release, closure, and outbound reporting
+
+**[WF-REVIEW-OPEN] — `UNRESOLVED` — Review and release sequence.** S02 includes *Batch Review* as a heading but does not specify the steps, roles, review statuses, acceptance criteria, or release transitions. S01 associates variation-level `Reportable = T` with review/release and outbound OIS XML; S02 also describes reportable final results, but neither establishes the operational review procedure. **Evidence:** S02 p. 9, *Batch Review*; S01 pp. 1–2, *Analyses*; S02 pp. 12–13, *Reportable Results*. **Owning result-selection rules:** [§7.5](#75-reportable-components-analyte-codes-and-ois-output); **open:** [G03](#g03-release-and-ois-response).
+
+**[WF-CLOSE-OPEN] — `UNRESOLVED` — Project closure and OIS response.** S02 states the purpose of producing an OIS response file and reports to CSHOs but leaves *Project Closure and OIS Reporting* without an implementation procedure. Do not infer response XML generation, delivery, acknowledgments, or error handling from result flags alone. **Evidence:** S02 p. 5, *Purpose*; p. 9, *Project Closure and OIS Reporting*; pp. 12–13, *Reportable Results*. **Open:** [G03](#g03-release-and-ois-response).
+
+### 9.6 Source-derived stage map and verification priorities
+
+| Stage | What is documented | What is not established |
+|---|---|---|
+| OIS request intake | SFTP and script mechanism; purpose of OIS request handling (S02 pp. 5–6) | XML validation, staging, project/sample creation, exception handling ([G01](#g01-xml-and-projectsample-setup)) |
+| Sample receiving | Receiving, seal, and label stages are named (S02 p. 8) | Operator sequence, required fields, status transitions |
+| Batch creation | Stock, standards, QC, and batch verification topics are named; configuration described elsewhere (S02 pp. 8, 13–16) | Full operator procedure and verification criteria |
+| Batch testing | Pre-analysis results, manual/file/Empower distinctions, file import entry point (S02 pp. 8, 16–19) | Complete mode-specific SOPs, error recovery ([G02](#g02-parser-failure-and-recovery), [G04](#g04-empower-exception-behavior)) |
+| Batch review | Review stage named; reportability settings described (S01 pp. 1–2; S02 pp. 9, 12–13) | Review and release criteria, statuses, approval actions ([G03](#g03-release-and-ois-response)) |
+| Closure and response | OIS response and CSHO reporting are intended outputs (S02 pp. 5, 9, 12–13) | Closure sequence, XML construction and transmission ([G03](#g03-release-and-ois-response)) |
+
+**Verification priorities:** Obtain configured workflow routines/screens and sanitized execution evidence for sample receiving, batch creation, batch review/release, and OIS response generation. Confirm manual-entry checks, import/Empower prerequisites, and failure handling separately. **No stage in this section is independently classified `OBSERVED`, `VERIFIED`, or `VENDOR_DOCUMENTED`.**
 
 ## 10. End-to-End Analysis Implementation Procedure
 
@@ -654,6 +697,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §6 file-import paths, parser contracts and context, validation phases, reordering, and failure limitations; retained unverified behavior. | S01 pp. 1–3; S02 pp. 6, 8, 16–18. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §7 limits, reporting-limit propagation, calculation mode, recovery, QC precision dependencies, and OIS reportability; retained gaps and unverified behavior. | S01 pp. 1–2; S02 pp. 5, 9–10, 12–13, 15. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §8 Empower project association, custom fields, sample-set/result mapping, onboarding steps, and peak-value handling; retained interface verification gaps. | S02 pp. 12, 19–21. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §9 operational stage boundaries from OIS intake through receiving, batch testing, review and closure; preserved undocumented procedures and mode-specific limits. | S01 pp. 1–2; S02 pp. 5–9, 11–19. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
