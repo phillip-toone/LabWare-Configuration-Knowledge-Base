@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–3 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–4 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -237,11 +237,64 @@ The end-to-end purpose includes outbound OIS reporting, but S02 p. 9 lists *Proj
 
 ## 4. Batch Configuration
 
-**Owner:** Batch templates, protocols, QC and stock records, batch components, required pre-analysis results, test membership, compatible methods.
+**Scope:** Laboratory-documented configuration of Batch Test Templates, links to analyses and tests, batch protocols, QC and stock references, batch result components, and method compatibility. This section distinguishes manual-entry, instrument-file, and Empower workflows. The detailed parser interface and file-processing sequence belong to [§6](#6-data-import-and-parsing); instrument master records to [§5](#5-instrument-configuration); result calculations and limits to [§7](#7-calculations-limits-and-reporting); operational review to [§9](#9-operational-workflows). **Evidence status:** S01/S02 instructions and descriptions only; no configuration export, source code, vendor reference, or executed verification test has been supplied.
 
-**To develop:** Template properties; batch link records; stock/standard/QC components; QC sample and CCV handling; manual versus file-driven batch prerequisites. Parser internals belong to §6.
+### 4.1 Batch template identity and core settings
 
-**Sources to review:** S01 p. 2; S02 pp. 13–16. **Open:** [Q01](#q01-instrument-reference-fields), [Q02](#q02-component-requiredness), [Q09](#q09-manual-batch-checks).
+**[BAT-TEMPLATE-01] — `DOCUMENTED_REQUIREMENT` — Normal method-oriented Test Batch configuration.** S01 requires a **Batch Test Template Name** exactly matching the OSHA method for which it is designed (example `OSHA_1023`), **Assign To Objects = True**, and an **Analysis Link Key** matching the analysis name. S02 describes batch configuration at the `T_ANALYSIS_METHOD` level, a **Name Prefix** using the OSHA method name, **Object Class = TEST**, and **Batch Type = Test Batch**. The distinction between S01's template-name requirement and S02's name-prefix setting is preserved; do not assume they are the same field. **Evidence:** S01 p. 2, *Batch*; S02 pp. 13–14, *Batch Configuration / Required Configuration*. **Related:** [§1.2](#12-batch-membership-and-analysis-link-identity), [§3.1](#31-analysis-record-and-conditional-settings).
+
+**[BAT-TEMPLATE-02] — `RECOMMENDATION` — Creating a new method template.** S02 recommends copying an existing Batch Test Template and renaming it for the new method, because the existing template may contain preconfigured QC-stock selection, a batch-review window, and illustrative batch-result components. This is a laboratory recommendation, **not** proof that any copied settings are appropriate for a different analysis; review all copied values. **Evidence:** S02 p. 13, *Required Configuration*.
+
+**[BAT-LINK-01] — `DOCUMENTED_REQUIREMENT` — Analyses assigned to a test batch.** S01 requires a new Batch Link record for each analysis to be batched and matching analysis-side Batch Link / batch-side Analysis Link Key values. S02 identifies the batch link type as **Analysis Link Key** and says it matches `ANALYSIS.NAME`; tests must belong to an analysis matching the batch link. Exact field and lookup behavior has not been independently checked. **Evidence:** S01 pp. 1–2; S02 pp. 14–15, *Required Configuration* and *Batch Tests*. **Related:** [§1.2](#12-batch-membership-and-analysis-link-identity).
+
+### 4.2 Test membership and compatible methods
+
+**[BAT-MEMBER-01] — `DOCUMENTED_DESCRIPTION` — Test batches described in S02.** S02 states that samples are linked to batches through their **tests**, not directly: `TEST.BATCH` contains the batch name, and `BATCH_OBJECTS.OBJECT_ID = TEST.TEST_NUMBER`. Do not infer this model applies to every LabWare batch class. **Evidence:** S02 p. 15, *Batch Tests*. **Architecture owner:** [§1.2](#12-batch-membership-and-analysis-link-identity).
+
+**[BAT-METHOD-01] — `DOCUMENTED_DESCRIPTION` / `IMPLEMENTATION_EXAMPLE` — Compatible-method exceptions.** S02 says a template ordinarily covers one analytical method but some compatible methods may be tested together. In its GC example, the child `OSHA_111` method maps to the `OSHA_5000_PASSIVE` variation (whose method is `OSHA_5000`), and `T_ANALYSIS_METHOD.X_RELATED_METHOD` on `OSHA_111` points to `OSHA_5000`. The analysis method/variation mapping must also be configured. This example does **not** establish a general compatibility rule. **Evidence:** S02 pp. 15–16, *Multiple Methods*. **See:** [§3.2](#32-master-methods-analysis-methods-and-variations), [Q03](#q03-methodvariation-relationships).
+
+### 4.3 Batch protocols, standards, and QC stock
+
+**[BAT-PROTOCOL-01] — `DOCUMENTED_REQUIREMENT` with conditional applicability — Batches requiring standard/QC samples.** S01 says the **Batch Protocol** can add QC samples automatically when a batch is created. S02 describes a **Batch Standard Protocol** that adds configured standard sets, whose records are held in `QC_SAMPLES`. S02 lists typical examples: calibration blank (`CB`), standards (`STD_A`, `STD_B`, etc.), initial calibration verification (`ICV`), and continuing calibration verification (`CCV`). The examples are not a universal required QC composition. **Evidence:** S01 p. 2, *Batch*; S02 pp. 13, 16, *Required Configuration* and *Standards*.
+
+**[BAT-QC-VAR-01] — `DOCUMENTED_REQUIREMENT` — Templates using QC variations.** S01 directs the **Batch Variation** in the batch configuration submenu to point to the QC method variation (example `OSHA_1023_QC`); S02 similarly specifies that the configuration window's **Variation** points to the method's QC analysis variation. Create the corresponding analysis variation when the batch uses QC samples. **Evidence:** S01 pp. 1–2; S02 p. 14, *Required Configuration*. **Variation setup owner:** [§3.2](#32-master-methods-analysis-methods-and-variations).
+
+**[BAT-QCSM-01] — `DOCUMENTED_REQUIREMENT` — Templates using QCSM stock.** S01 says **X_QC_STOCK** on the **parent batch configuration page**, not the submenu opened by Configure, should point to allowed QCSM stock entries; this controls which QCSM stock may be added. S02 says to configure and attach a **QCSM Stock** record under **QC Stock**. The exact equivalence or interaction of these UI labels has not been verified. **Evidence:** S01 p. 2, *Batch*; S02 p. 14, *Required Configuration*.
+
+**[BAT-RLSM-01] — `DOCUMENTED_REQUIREMENT` — Batch templates requiring reporting-limit stock per S02.** S02 instructs configuring an **RLSM Stock** record and attaching it as **RL Stock** on the batch template. S01 does not discuss this field; do not infer its necessity for every possible batch type without examining the analysis workflow. **Evidence:** S02 p. 14, *Required Configuration*. **Reporting-limit calculation owner:** [§7](#7-calculations-limits-and-reporting).
+
+**[BAT-CCV-01] — `DOCUMENTED_DESCRIPTION` — Repeated CCV runs in the documented OSHA batch workflow.** S02 describes CCVs as potentially recurring (typically once per ten field samples). It directs keeping **one batch sample per QC type** and adding additional **analysis replicates** to that sample when multiple CCV runs are required, then ordering those tests appropriately. This is laboratory-specific guidance, not a universal LabWare restriction or a verified scheduling algorithm. **Evidence:** S02 p. 16, *CCVs*. **Related:** [§6](#6-data-import-and-parsing) for file-driven replication and reordering.
+
+### 4.4 Batch result components and reference fields
+
+**[BAT-COMP-01] — `DOCUMENTED_REQUIREMENT` — Batch result components referring to stock.** S01 directs filling **Other Fields → X_STOCK** with the appropriate stock item for stock-referencing results. S02 specifies `BATCH_COMPONENT.X_STOCK = STOCK.NAME` for **Stock Used** and says **Standards Used** is configured similarly. For standard components, S02 additionally states `BATCH_COMPONENT.ALIAS_NAME = QC_SAMPLES.NAME` to match the QC samples in the batch standard protocol. **Evidence:** S01 p. 2, *Batch Result Components*; S02 pp. 14–15, *Required Configuration*.
+
+**[BAT-COMP-02] — `DOCUMENTED_REQUIREMENT` — Instrument-identifying batch results.** S01 requires the instrument result **Alias Name** to match the instrument group. S02 specifies `BATCH_COMPONENT.ALIAS_NAME = INSTRUMENT.INST_GROUP` and describes **Instrument Used** components, including additional components when multiple instruments are involved. S02 elsewhere mentions the batch result `X_STOCK` field in relation to instruments; this is **unresolved**, not silently replaced by the alias rule. **Evidence:** S01 p. 2; S02 pp. 9, 14–15. **See:** [§5](#5-instrument-configuration), [Q01](#q01-instrument-reference-fields).
+
+**[BAT-COMP-03] — `DOCUMENTED_REQUIREMENT` — Instrument-file imports only.** S01 directs that the batch result identifying the instrument producing the parsed file have **Other Fields → Data File Source = True**, with **only one Data File Source per batch**. It also requires an **Instrument File** batch result with type **DB File Name**. S02 likewise identifies **Instrument File** among the batch results needed for processing. Do not apply these requirements automatically to manual-entry or Empower-only batches. **Evidence:** S01 p. 2, *Batch Result Components*; S02 p. 14, *Required Configuration*. **Parser/file handling owner:** [§6](#6-data-import-and-parsing).
+
+**[BAT-COMP-04] — `DOCUMENTED_DESCRIPTION` / `DOCUMENTED_REQUIREMENT` — Batch component entry calculations.** S02 gives illustrative **Instrument Used** calculation logic (`SELECT BATCH_COMPONENT.ALIAS_NAME` into `instGroupName`; `GOSUB BC_INSTRUMENT_BROWSE`; `RETURN instrumentName`), **Stock Used** / **Standards Used** logic (`GOSUB CALC_ING_SCAN_DIALOG`; `RETURN`), and directs **Auto-calc false** for these batch component calculations. These are source-provided configurations, not independently validated code snippets or a complete executable routine. **Evidence:** S02 pp. 14–15, *Required Configuration*. **See:** [§5](#5-instrument-configuration) and [§7](#7-calculations-limits-and-reporting).
+
+**[BAT-PRECISION-01] — `DOCUMENTED_REQUIREMENT` with `IMPLEMENTATION_EXAMPLE` — QCSM precision results where configured.** S02 calls for **one QCSM Precision record per reportable recovery (F/T)** on the batched analysis, with **Auto-calc false**, `targetElement` set to the applicable recovery component, and `GOSUB CALC_BATCH_QC_REC_PRECISION`. The example target is `Be F/T`; it must not be copied unchanged to unrelated analyses. The precise meaning of “F/T” and runtime calculation behavior have not been independently established. **Evidence:** S02 p. 15, *QCSM Precision*. **Calculation owner:** [§7](#7-calculations-limits-and-reporting).
+
+### 4.5 Pre-analysis results and entry-mode differences
+
+**[BAT-PREREQ-01] — `DOCUMENTED_REQUIREMENT` — Instrument-file import; also described for Empower in S02.** S01 states that batch results with **Optional = F** must be entered before a data file can be imported. S02 says all **non-optional batch results** must be entered before file parsing or Empower testing proceeds, and its batch-template details refer to instrument/stock results marked **Required = T** as blocking parsing until populated. These descriptions may reflect different UI terms or contexts; **do not assume field equivalence** until verified. For `OSHA_1023`, S01 gives the example that lab solutions and instruments other than the balance must be entered before file processing. **Evidence:** S01 p. 2; S02 pp. 8, 14–15. **See:** [Q02](#q02-component-requiredness).
+
+**[BAT-MANUAL-01] — `DOCUMENTED_DESCRIPTION` — Manual batch result entry.** S02 states that **manual-entry batches do not perform batch-level validation of the Batch Results table** and that the analyst and reviewer must ensure required entries are present. This is a documented laboratory workflow description, not proof of all possible manual-entry validation behavior. **Evidence:** S02 p. 16, *Manual Data Entry*. **See:** [§9](#9-operational-workflows), [Q09](#q09-manual-batch-checks).
+
+**[BAT-FILE-01] — `DOCUMENTED_DESCRIPTION` — File-driven batches.** S02 describes a manually initiated **Batch → Batch Process Results** routine, even though automatic file imports are possible, because the OSHA import workflow requires complex validation and data-dependent logic. The routine checks the **Instrument File** result before importing and calls an analysis-specific parser. This entry establishes the batch-side boundary only; routine dispatch, validation-only and commit loops, file lifecycle, and returned variables are owned by [§6](#6-data-import-and-parsing). **Evidence:** S02 pp. 8, 16–18, *Batch Testing / Data Parsing* and *Data File Batches*.
+
+**[BAT-EMPOWER-01] — `DOCUMENTED_DESCRIPTION` — Empower batches.** S02 describes instrument/project consistency checks and additional configuration in both LabWare and Empower. The batch's instrument selection participates in the project check; no inference is made that an Empower-only batch requires the file-parser's **Data File Source** or **Instrument File** configuration. **Evidence:** S02 pp. 19–21, *Empower Batches*. **Owning details:** [§8](#8-empower-integration).
+
+### 4.6 Evidence limitations and verification priorities
+
+- **Template and link fields:** Confirm template name versus name prefix, **Assign To Objects**, Batch Link/Analysis Link Key records, and physical lookup behavior from configuration exports. See [§1.2](#12-batch-membership-and-analysis-link-identity).
+- **Instrument reference ambiguity:** Inspect actual batch components to distinguish **Alias Name**, `X_STOCK`, instrument group, and instrument barcode relationships. See [Q01](#q01-instrument-reference-fields).
+- **Requiredness semantics:** Determine whether **Optional = F**, **Required = T**, and S02's “non-optional” wording describe one control or different contexts. See [Q02](#q02-component-requiredness).
+- **QC and stock applicability:** Confirm which methods require QCSM/RLSM stocks, the exact relationship between **X_QC_STOCK** and **QC Stock**, and how repeated CCVs and precision calculations behave.
+- **Manual and automated validation:** Confirm actual behavior of manual batch checks, file import prerequisites, and Empower gating with code/configuration and reproducible tests. See [Q09](#q09-manual-batch-checks), [§6](#6-data-import-and-parsing), [§8](#8-empower-integration).
+- **No vendor/runtime verification:** Nothing in §4 is yet classified `VENDOR_DOCUMENTED`, `OBSERVED`, or `VERIFIED`. Method-specific examples are not universal configuration templates.
 
 ## 5. Instrument Configuration
 
@@ -386,6 +439,7 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §1 architecture and dependencies, with conditional scope, source references, and unresolved questions retained. | S01 pp. 1–3; S02 pp. 6–7, 9–11, 13–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §2 OIS integration, OCD, test assignment, and explicitly undocumented project/sample and receiving procedures. | S02 pp. 5–9, 10–11. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §3 analysis configuration, method/variation setup, components, attributes and aliquoting; retained conditional rules and unresolved questions. | S01 pp. 1–2; S02 pp. 9–13, 15–16. Source-documented, not independently verified. |
+| 2026-10-14 | Populated §4 batch templates, test membership, protocols, QC/stock references, batch components and entry-mode distinctions; retained unresolved terminology and field questions. | S01 pp. 1–2; S02 pp. 8, 13–21. Source-documented, not independently verified. |
 
 ### 14.3 Maintenance procedure
 
