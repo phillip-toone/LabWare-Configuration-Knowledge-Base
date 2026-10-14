@@ -1,6 +1,6 @@
 # LabWare Configuration Knowledge Base
 
-> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–9 populated from registered sources, other technical sections remain skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
+> **Status:** Incremental consolidation (Phase 4), 2026-10-14; §§1–10 populated from registered sources and source-derived recommendations, §§11–14 remain evidence registers or partial skeletons. **Not yet a complete implementation specification.** The source documents have not been consolidated into this file. No live LabWare behavior has been independently verified.
 >
 > **Audience:** Laboratory implementers and LLM assistants supporting the OSHA Technical Center LabWare LIMS implementation.
 
@@ -591,11 +591,59 @@ The following is a **planning aid**, not a verified UI sequence or a complete in
 
 ## 10. End-to-End Analysis Implementation Procedure
 
-**Owner:** Ordered implementation checklist that links to established rules rather than reproducing them.
+**Scope:** A practical, **recommended implementation sequence** for a new or revised analysis, derived from the laboratory-documented dependencies in §§1–9. This is a **planning and verification checklist**, not a vendor-prescribed sequence, validated laboratory SOP, or substitute for the owning configuration sections. Each item must be evaluated for applicability; do not interpret an unchecked item as a universally required LabWare setting. **Evidence status:** S01/S02 and the source-supported canonical sections; no end-to-end implementation test has been supplied.
 
-**Status:** **Not yet established.** Populate after §§1–9 have evidence-backed content. The sequence must branch for manual entry, instrument-file import, and Empower, and distinguish necessary setup from optional QC/aliquot features.
+### 10.1 Define the implementation case before configuring
 
-**Planned checkpoints:** Identify analysis/method/media → establish dependencies → configure analysis/variation/components → configure batch/instrument/integration as applicable → configure calculations/reporting → test assignment, result processing and release → capture evidence and unresolved issues. **This is a proposed organization, not a validated operating procedure.**
+**[PROC-SCOPE-01] — `RECOMMENDATION` — All proposed analysis implementations.** Record the intended analysis name, OSHA method(s), field-sample media, requested analyte codes, expected results, and whether the work is a new analysis, a new method/variation of an existing analysis, or a modification of an existing implementation. Identify the testing mode: **manual result entry**, **instrument-file import**, **Empower**, or a documented combination. Identify whether QC/QCSM, RLSM, aliquoting, multiple instruments, or compatible-method batching are relevant. These are planning questions, **not** proof that every field or feature is required. **Basis:** [§1](#1-configuration-architecture-and-dependencies), [§2](#2-ois-integration-project-and-sample-setup), [§3](#3-analysis-configuration), [§4](#4-batch-configuration).
+
+**Decision boundary:** If required media-to-method mappings, reportable analyte codes, or calculation/reporting expectations are unknown, mark them `UNRESOLVED`; do not select values from an unrelated analysis example. For an OIS workflow, note that inbound XML parsing, project/sample creation, and receiving procedures remain incomplete in the sources ([G01](#g01-xml-and-projectsample-setup)).
+
+### 10.2 Common configuration path (source-derived prerequisites)
+
+The order below is a **recommended dependency-aware work order**, not a verified UI execution order. Use the linked sections for actual requirements, values, and source citations.
+
+| Step | Configuration activity and applicability | Canonical owner | Proposed check / evidence to capture |
+|---|---|---|---|
+| 1 | **Confirm assignment prerequisites**, if automated OIS test assignment is in scope: analyte code, sample media, corresponding `X_OCD_MONITORING` monitoring method, and applicable method/variation association. | [§2.2](#22-occupational-chemical-database-reference-tables), [§2.3](#23-automated-test-assignment-prerequisites) | Record the relevant reference rows and expected method/variation; do not infer behavior for missing or multiple matches. |
+| 2 | **Establish method records and associations:** identify the master `T_ANALYSIS_METHOD` record and configure applicable analysis method-to-variation pairs. Treat related-method exceptions separately. | [§3.2](#32-master-methods-analysis-methods-and-variations), [§1.3](#13-method-variation-and-test-assignment-dependencies) | Record method IDs, variation names, and source/configuration evidence; retain the physical-table naming question [Q03](#q03-methodvariation-relationships). |
+| 3 | **Configure the analysis and variations:** analysis identity, conditional Batch Link and instrument group, applicable sample types, and destructive flag only where justified. | [§3.1](#31-analysis-record-and-conditional-settings), [§3.2](#32-master-methods-analysis-methods-and-variations) | Check exact matches and variation applicability; document effects of the destructive flag as unverified until tested. |
+| 4 | **Configure result components:** base versus variation flags, optionality/display, reportable final components and OIS analyte-code aliases, plus applicable attributes and instrument-result flags. | [§3.3](#33-base-components-versus-variation-components), [§3.4](#34-attributes-and-instrument-result-component-flags), [§7.5](#75-reportable-components-analyte-codes-and-ois-output) | Inspect representative test components; keep [Q02](#q02-component-requiredness) and [Q07](#q07-reportability-semantics) open where precedence is not established. |
+| 5 | **Configure batch testing, if used:** method-oriented Batch Test Template, Analysis Link Key, `TEST` membership, QC protocol, stocks, and batch result components as applicable. | [§4.1](#41-batch-template-identity-and-core-settings)–[§4.5](#45-pre-analysis-results-and-entry-mode-differences) | Capture template and link settings; distinguish stock references from instrument aliases and preserve [Q01](#q01-instrument-reference-fields). |
+| 6 | **Configure calculations and reporting:** appropriate analysis limits, reporting-limit propagation, final-result calculations, recovery/QC calculations if used, and reportable output. | [§7](#7-calculations-limits-and-reporting) | Identify actual calculation records, expected result/limit transformations, and unknown execution or formatting behavior; do not invent formulas. |
+
+**Conditional extensions:** If aliquoting is required, configure its variation and investigate `X_OCD_MONITORING.NUM_ALIQUOT` and `VWF_SLTC_TESTING_BATCH_CREATE` under [§3.5](#35-aliquoting-and-dynamically-assigned-testing). If compatible methods share a batch, follow the documented related-method exception in [§4.2](#42-test-membership-and-compatible-methods); do not infer compatibility from naming alone. For QC, QCSM, RLSM, and repeated CCVs, follow [§4.3](#43-batch-protocols-standards-and-qc-stock) rather than assuming every method needs the same standard set. **Basis:** S01 pp. 1–2; S02 pp. 10–16.
+
+### 10.3 Select and configure the testing mode
+
+| Mode | Additional documented configuration to consult | Boundaries and open questions |
+|---|---|---|
+| **Manual entry** | Batch result components and analyst/reviewer checks in [§4.5](#45-pre-analysis-results-and-entry-mode-differences); calculation-mode guidance in [§7.3](#73-calculation-execution-and-data-source-distinctions). | S02 says manual Batch Results are not validated at batch level; do not infer that file-parser setup is needed or that no other validation exists. [Q09](#q09-manual-batch-checks). |
+| **Instrument-file import** | Instrument-group/Parameter 1 conventions [§5](#5-instrument-configuration); single Data File Source and Instrument File result [§4.4](#44-batch-result-components-and-reference-fields); path constant, parser names, ten-column array, validation, and optional reordering [§6](#6-data-import-and-parsing); file-import `AutoCalculate = F` rule [§7.3](#73-calculation-execution-and-data-source-distinctions). | Do not assume parser dispatch, all returned-variable obligations, retry/rollback safety, or alternate path granularity are verified. [Q04](#q04-parser-dispatch), [Q05](#q05-parser-contract), [Q08](#q08-path-constant-granularity), [G02](#g02-parser-failure-and-recovery). |
+| **Empower** | Instrument Parameter 2/project association [§5.4](#54-instrument-parameter-2-and-empower-project-association); four custom fields, sample-set/result mappings, and `ND` handling [§8](#8-empower-integration); conditional calculation settings [§7.3](#73-calculation-execution-and-data-source-distinctions). | Do not assume the instrument-file parser's constant, Data File Source, or Instrument File result is required for an Empower-only workflow. Validate copied mappings and project matching; error/retry behavior remains undocumented. [G04](#g04-empower-exception-behavior). |
+
+**[PROC-MODE-01] — `RECOMMENDATION` — Mixed or atypical workflows.** If a method combines modes or uses an undocumented integration, assess each dependency separately and record the evidence; the sources do not provide a universal combined-mode procedure. **Basis:** S01 p. 1; S02 pp. 12, 16–21.
+
+### 10.4 Verification checkpoints before relying on the configuration
+
+The checks below are **recommended tests to design and record**, not claims that these tests have already passed or that the source documents prescribe formal acceptance criteria. Use sanitized evidence where appropriate.
+
+| Checkpoint | What to test or inspect | Expected outcome source / unresolved boundary |
+|---|---|---|
+| **Assignment** | Representative analyte-code/media combinations; correct method and variation; missing and ambiguous mappings. | [§2.3](#23-automated-test-assignment-prerequisites); no documented missing/multiple-match handling. |
+| **Analysis and batch linking** | Method/variation records, batch links, test membership, component visibility/requiredness. | [§1.2](#12-batch-membership-and-analysis-link-identity), [§3](#3-analysis-configuration), [§4](#4-batch-configuration); field semantics may remain unresolved. |
+| **QC and aliquots (if used)** | Standard protocol/stock selection, repeated CCVs, aliquot creation, and resulting test associations. | [§3.5](#35-aliquoting-and-dynamically-assigned-testing), [§4.3](#43-batch-protocols-standards-and-qc-stock); no general acceptance criteria supplied. |
+| **Result entry/import** | Manual result completion; file validation and rejection; parser result mapping and order; Empower project/mapping and `ND` values as applicable. | [§4.5](#45-pre-analysis-results-and-entry-mode-differences), [§6](#6-data-import-and-parsing), [§8](#8-empower-integration); failure/retry behavior is not established. |
+| **Calculation and reporting** | Raw/final result transformation, blank dependencies, limits, recovery, final reportable components and analyte aliases. | [§7](#7-calculations-limits-and-reporting); no universal formulas, rounding rules, or release criteria supplied. |
+| **Review, release and OIS response** | Only when the relevant configured workflow and acceptance criteria are available: review states, release, XML output, and delivery. | [§9.5](#95-review-release-closure-and-outbound-reporting), [G03](#g03-release-and-ois-response); currently not documented sufficiently for a pass/fail script. |
+
+**[PROC-VERIFY-01] — `RECOMMENDATION` — Evidence capture.** For each executed check, record environment, date, method/analysis/variation, relevant configuration snapshot or routine version, input, expected outcome, actual outcome, and outstanding questions. Classify an inspected configuration as `OBSERVED` and a reproducible successful behavior as `VERIFIED` only when supporting evidence is retained; neither label applies automatically because a source document describes the behavior. See [§0.3](#03-evidence-classification) and [§12](#12-troubleshooting-and-verified-behaviors).
+
+### 10.5 Completion boundary and handoff
+
+**[PROC-CLOSE-01] — `RECOMMENDATION` — Implementation handoff.** Record which applicable configurations are complete, which verification checkpoints have evidence, and which open issues remain. Link method-specific deviations to [§11](#11-established-configuration-examples), verified failure modes to [§12](#12-troubleshooting-and-verified-behaviors), and unresolved items to [§13](#13-open-questions-and-undocumented-areas). An analysis must **not** be described as fully validated merely because this planning checklist is complete. The sources do not provide a general go-live approval rule, formal sign-off procedure, or complete end-to-end release test.
+
+**Evidence limitations:** This sequence is synthesized from S01 pp. 1–3 and S02 pp. 5–21 and the canonical guidance in §§1–9. It is `RECOMMENDATION` where it proposes work order or verification, while the linked sections retain the actual `DOCUMENTED_REQUIREMENT` and `DOCUMENTED_DESCRIPTION` statements. No vendor or runtime verification is asserted here.
 
 ## 11. Established Configuration Examples
 
@@ -698,6 +746,8 @@ For SHA-256 checksums, version information, and source status, consult [`source/
 | 2026-10-14 | Populated §7 limits, reporting-limit propagation, calculation mode, recovery, QC precision dependencies, and OIS reportability; retained gaps and unverified behavior. | S01 pp. 1–2; S02 pp. 5, 9–10, 12–13, 15. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §8 Empower project association, custom fields, sample-set/result mapping, onboarding steps, and peak-value handling; retained interface verification gaps. | S02 pp. 12, 19–21. Source-documented, not independently verified. |
 | 2026-10-14 | Populated §9 operational stage boundaries from OIS intake through receiving, batch testing, review and closure; preserved undocumented procedures and mode-specific limits. | S01 pp. 1–2; S02 pp. 5–9, 11–19. Source-documented, not independently verified. |
+
+| 2026-10-14 | Populated §10 with a source-derived implementation checklist, mode-specific branches, and proposed verification checkpoints; no new technical requirements or verified outcomes asserted. | S01 pp. 1–3; S02 pp. 5–21; cross-references to §§1–9. Recommended sequence, not validated SOP. |
 
 ### 14.3 Maintenance procedure
 
